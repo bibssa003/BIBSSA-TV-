@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BIBSSA TV</title>
+    <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            color: #fff; 
+            text-align: center; 
+            margin: 0; 
+            padding: 15px;
+            
+            /* إعدادات الصورة الخلفية */
+            /* استبدل الرابط أدناه برابط صورتك المفضلة، أو باسم ملف الصورة إذا كان بجانب index.html مثل: url('bg.jpg') */
+            background: linear-gradient(rgba(15, 15, 18, 0.85), rgba(15, 15, 18, 0.85)), 
+                        url('bg.jpg') no-repeat center center fixed;
+            background-size: cover;
+        }
+
+        .player-container { max-width: 900px; margin: 0 auto 20px auto; }
+        video { width: 100%; height: auto; background: #000; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.9); }
+        
+        .controls { max-width: 900px; margin: 0 auto 15px auto; display: flex; gap: 10px; justify-content: center; }
+        select { 
+            background: rgba(30, 30, 36, 0.9); 
+            color: #00d2ff; 
+            border: 1px solid rgba(255, 255, 255, 0.2); 
+            padding: 10px 15px; 
+            border-radius: 8px; 
+            font-size: 15px; 
+            font-weight: bold; 
+            outline: none; 
+            width: 100%; 
+            max-width: 320px; 
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+        }
+        
+        .list { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); 
+            gap: 10px; 
+            max-height: 380px; 
+            overflow-y: auto; 
+            padding: 10px; 
+            max-width: 900px; 
+            margin: 0 auto;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 12px;
+            backdrop-filter: blur(8px);
+        }
+
+        button { 
+            background: rgba(30, 30, 36, 0.85); 
+            color: #e0e0e0; 
+            border: 1px solid rgba(255, 255, 255, 0.1); 
+            padding: 12px 8px; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-size: 12px; 
+            font-weight: 600; 
+            transition: all 0.2s; 
+            text-overflow: ellipsis; 
+            overflow: hidden; 
+            white-space: nowrap; 
+        }
+
+        button:hover, button.active { 
+            background: #007bff; 
+            color: #fff; 
+            border-color: #007bff; 
+            transform: translateY(-2px); 
+            box-shadow: 0 4px 12px rgba(0, 123, 255, 0.4);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="player-container">
+        <h2>BIBSSA TV 📺</h2>
+        <video id="video" controls autoplay></video>
+    </div>
+
+    <!-- قائمة اختيار الفئة -->
+    <div class="controls">
+        <select id="category-select" onchange="filterChannels()">
+            <option value="ALL">جميع الفئات (جاري التحميل...)</option>
+        </select>
+    </div>
+
+    <!-- شبكة عرض القنوات -->
+    <div class="list" id="channel-list">جاري تحميل القنوات...</div>
+
+    <script>
+        const video = document.getElementById('video');
+        let flvPlayer = null;
+        let allChannels = [];
+
+        function playStream(originalUrl, btnElement) {
+            const proxyUrl = `/proxy?url=${encodeURIComponent(originalUrl)}`;
+
+            document.querySelectorAll('.list button').forEach(b => b.classList.remove('active'));
+            if(btnElement) btnElement.classList.add('active');
+
+            if (flvPlayer) {
+                flvPlayer.destroy();
+                flvPlayer = null;
+            }
+
+            if (Hls.isSupported() && originalUrl.includes('.m3u8')) {
+                const hls = new Hls();
+                hls.loadSource(proxyUrl);
+                hls.attachMedia(video);
+                hls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
+            } else if (mpegts.getFeatureList().mseLivePlayback) {
+                flvPlayer = mpegts.createPlayer({ type: 'mse', isLive: true, url: proxyUrl });
+                flvPlayer.attachMediaElement(video);
+                flvPlayer.load();
+                flvPlayer.play().catch(e => console.log(e));
+            } else {
+                video.src = proxyUrl;
+                video.play();
+            }
+        }
+
+        async function loadChannels() {
+            try {
+                const res = await fetch('/fetch-live');
+                const data = await res.json();
+                allChannels = data.data;
+
+                populateCategories();
+                filterChannels();
+            } catch (err) {
+                document.getElementById('channel-list').innerText = 'فشل جلب القنوات';
+            }
+        }
+
+        function populateCategories() {
+            const select = document.getElementById('category-select');
+            const categories = ['ALL', ...new Set(allChannels.map(ch => ch.group))];
+            
+            select.innerHTML = categories.map(cat => 
+                `<option value="${cat}">${cat === 'ALL' ? 'كل الفئات 📋' : cat}</option>`
+            ).join('');
+        }
+
+        function filterChannels() {
+            const selectedCat = document.getElementById('category-select').value;
+            const container = document.getElementById('channel-list');
+            container.innerHTML = '';
+
+            const filtered = selectedCat === 'ALL' 
+                ? allChannels 
+                : allChannels.filter(ch => ch.group === selectedCat);
+
+            filtered.forEach(ch => {
+                const btn = document.createElement('button');
+                btn.innerText = ch.title;
+                btn.onclick = (e) => playStream(ch.stream_url, e.target);
+                container.appendChild(btn);
+            });
+        }
+
+        loadChannels();
+    </script>
+</body>
+</html>
