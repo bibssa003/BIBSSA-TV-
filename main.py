@@ -1,11 +1,9 @@
 from fastapi import FastAPI, Query
-from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 import requests
 from bs4 import BeautifulSoup
 import re
-import os
 
 app = FastAPI()
 
@@ -22,11 +20,9 @@ MOVIES_URL = "https://egybests.live/"
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-    "Referer": MATCHES_URL,
+    "Referer": "https://google.com",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
 }
-
-# --- مسارات ملفات PWA والواجهة ---
 
 @app.get("/")
 def get_home():
@@ -40,100 +36,136 @@ def get_manifest():
 def get_sw():
     return FileResponse("sw.js", media_type="application/javascript")
 
-# --- محرك الرياضة والمباريات (Live Sports Hub) ---
+# --- محرك الرياضة والمباريات ---
 
 @app.get("/api/matches")
 def get_matches():
-    """ كشط جدول مباريات اليوم من live-match.net """
     matches = []
     try:
         res = requests.get(MATCHES_URL, headers=HEADERS, timeout=10)
         if res.status_code == 200:
             soup = BeautifulSoup(res.text, 'html.parser')
-            # البحث عن عناصر المباريات داخل الموقع
-            match_cards = soup.find_all(['div', 'a'], class_=re.compile(r'(match|match-card|match-item)'))
+            # البحث عن جميع الروابط والعناصر التي تحتوى على مباريات
+            elements = soup.find_all(['a', 'div'], class_=lambda c: c and any(x in c.lower() for x in ['match', 'event', 'game', 'albap']))
             
-            for idx, card in enumerate(match_cards):
-                teams = card.find_all(class_=re.compile(r'(team|name|title)'))
-                status = card.find(class_=re.compile(r'(time|status|score)'))
-                link = card.get('href') if card.name == 'a' else (card.find('a')['href'] if card.find('a') else '')
-
-                if len(teams) >= 2:
-                    home_team = teams[0].get_text(strip=True)
-                    away_team = teams[1].get_text(strip=True)
-                    match_status = status.get_text(strip=True) if status else "قريباً"
-
-                    if link and not link.startswith('http'):
-                        link = MATCHES_URL.rstrip('/') + '/' + link.lstrip('/')
-
-                    matches.append({
-                        "id": idx + 1,
-                        "home_team": home_team,
-                        "away_team": away_team,
-                        "status": match_status,
-                        "match_page": link
-                    })
+            for idx, el in enumerate(elements):
+                text = el.get_text(" ", strip=True)
+                href = el.get('href') if el.name == 'a' else (el.find('a')['href'] if el.find('a') else '')
+                
+                if "ضد" in text or "vs" in text.lower() or "-" in text:
+                    parts = re.split(r'ضد|vs|-', text, flags=re.IGNORECASE)
+                    if len(parts) >= 2:
+                        if href and not href.startswith('http'):
+                            href = MATCHES_URL.rstrip('/') + '/' + href.lstrip('/')
+                        matches.append({
+                            "id": idx + 1,
+                            "home_team": parts[0].strip()[:20],
+                            "away_team": parts[1].strip()[:20],
+                            "status": "مباشر 🔴",
+                            "match_page": href if href else MATCHES_URL
+                        })
     except Exception as e:
-        print(f"Error fetching matches: {e}")
+        print(f"Match Error: {e}")
+
+    # خيار احتياطي في حال عدم إرجاع أي مباراة من الموقع المصدر
+    if not matches:
+        matches = [
+            {
+                "id": 1,
+                "home_team": "قناة رياضية حية 1",
+                "away_team": "بث مباشر",
+                "status": "مباشر 🔴",
+                "match_page": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"
+            },
+            {
+                "id": 2,
+                "home_team": "قناة رياضية حية 2",
+                "away_team": "بث مباشر",
+                "status": "مباشر 🔴",
+                "match_page": "https://iptv-org.github.io/iptv/index.m3u"
+            }
+        ]
 
     return {"success": True, "count": len(matches), "data": matches}
 
 @app.get("/api/match-servers")
 def get_match_servers(page_url: str = Query(...)):
-    """ استخراج سيرفرات المشاهدة المباشرة للمباراة """
     servers = []
+    if page_url.endswith('.m3u8') or page_url.endswith('.m3u'):
+        return {"servers": [{"name": "سيرفر رئيسي", "stream_url": page_url}]}
+
     try:
         res = requests.get(page_url, headers=HEADERS, timeout=8)
         if res.status_code == 200:
             soup = BeautifulSoup(res.text, 'html.parser')
-            iframes = soup.find_all('iframe')
-            for idx, iframe in enumerate(iframes):
-                src = iframe.get('src') or iframe.get('data-src')
-                if src:
-                    if not src.startswith('http'):
-                        src = "https:" + src if src.startswith('//') else page_url
-                    servers.append({"name": f"سيرفر {idx+1}", "stream_url": src})
+            
+            # البحث عن m3u8 مباشر
+            m3u8_links = re.findall(r'https?://[^\'"\s]+\.m3u8[^\'"\s]*', res.text)
+            for idx, link in enumerate(m3u8_links):
+                servers.append({"name": f"سيرفر M3U8 {idx+1}", "stream_url": link})
+                
+            # البحث عن iframes
+            ifnot servers:
+                for idx, iframe in enumerate(soup.find_all('iframe')):
+                    src = iframe.get('src') or iframe.get('data-src')
+                    if src:
+                        if src.startswith('//'):
+                            src = "https:" + src
+                        servers.append({"name": f"سيرفر بث {idx+1}", "stream_url": src})
     except Exception:
         pass
+
+    if not servers:
+        servers = [{"name": "سيرفر افتراضي", "stream_url": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"}]
+
     return {"servers": servers}
 
-# --- محرك الترفيه والأفلام (Cinema & VOD Hub) ---
+# --- محرك الأفلام والسينما ---
 
 @app.get("/api/movies")
-def get_movies(page: int = 1, category: str = "all"):
-    """ كشط الأفلام والمسلسلات من egybests.live """
+def get_movies():
     movies = []
     try:
-        url = MOVIES_URL if category == "all" else f"{MOVIES_URL}/{category}/"
-        res = requests.get(url, headers=HEADERS, timeout=10)
+        res = requests.get(MOVIES_URL, headers=HEADERS, timeout=10)
         if res.status_code == 200:
             soup = BeautifulSoup(res.text, 'html.parser')
-            items = soup.find_all(['div', 'a'], class_=re.compile(r'(movie|item|poster|card)'))
+            # استخراج البطاقات والأفلام
+            cards = soup.find_all(['div', 'a'], class_=lambda c: c and any(x in c.lower() for x in ['movie', 'film', 'item', 'entry', 'post']))
 
-            for item in items:
-                title_elem = item.find(class_=re.compile(r'(title|name)'))
-                img_elem = item.find('img')
-                link_elem = item if item.name == 'a' else item.find('a')
+            for card in cards:
+                img = card.find('img')
+                title_elem = card.find(['h2', 'h3', 'h4', 'span']) or card
+                link_elem = card if card.name == 'a' else card.find('a')
 
-                if title_elem and link_elem:
+                if img and link_elem:
                     title = title_elem.get_text(strip=True)
-                    poster = img_elem.get('src') or img_elem.get('data-src') if img_elem else ''
-                    link = link_elem.get('href', '')
+                    poster = img.get('src') or img.get('data-src') or img.get('data-lazy-src')
+                    link = link_elem.get('href')
 
-                    if link and not link.startswith('http'):
-                        link = MOVIES_URL.rstrip('/') + '/' + link.lstrip('/')
-
-                    movies.append({
-                        "title": title,
-                        "poster": poster,
-                        "details_url": link
-                    })
+                    if title and len(title) > 2 and poster:
+                        if not link.startswith('http'):
+                            link = MOVIES_URL.rstrip('/') + '/' + link.lstrip('/')
+                        movies.append({
+                            "title": title[:30],
+                            "poster": poster,
+                            "details_url": link
+                        })
     except Exception as e:
-        print(f"Error fetching movies: {e}")
+        print(f"Movie Error: {e}")
+
+    # خيار احتياطي في حال عدم توفر أفلام من الموقع
+    if not movies:
+        movies = [
+            {
+                "title": "فيلم تجريبي HD",
+                "poster": "https://via.placeholder.com/300x450/00d2ff/000000?text=BIBSSA+TV",
+                "details_url": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"
+            }
+        ]
 
     return {"success": True, "count": len(movies), "data": movies}
 
-# --- البروكسي العام لتجاوز قيود الحظر و CORS ---
+# --- البروكسي العامة ---
 
 @app.get("/proxy")
 def proxy_stream(url: str = Query(...)):
