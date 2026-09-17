@@ -45,7 +45,6 @@ def get_matches():
         res = requests.get(MATCHES_URL, headers=HEADERS, timeout=10)
         if res.status_code == 200:
             soup = BeautifulSoup(res.text, 'html.parser')
-            # البحث عن جميع الروابط والعناصر التي تحتوى على مباريات
             elements = soup.find_all(['a', 'div'], class_=lambda c: c and any(x in c.lower() for x in ['match', 'event', 'game', 'albap']))
             
             for idx, el in enumerate(elements):
@@ -67,7 +66,7 @@ def get_matches():
     except Exception as e:
         print(f"Match Error: {e}")
 
-    # خيار احتياطي في حال عدم إرجاع أي مباراة من الموقع المصدر
+    # خيار احتياطي لضمان عدم ظهور القائمة فارغة
     if not matches:
         matches = [
             {
@@ -99,13 +98,11 @@ def get_match_servers(page_url: str = Query(...)):
         if res.status_code == 200:
             soup = BeautifulSoup(res.text, 'html.parser')
             
-            # البحث عن m3u8 مباشر
             m3u8_links = re.findall(r'https?://[^\'"\s]+\.m3u8[^\'"\s]*', res.text)
             for idx, link in enumerate(m3u8_links):
                 servers.append({"name": f"سيرفر M3U8 {idx+1}", "stream_url": link})
                 
-            # البحث عن iframes
-            ifnot servers:
+            if not servers:
                 for idx, iframe in enumerate(soup.find_all('iframe')):
                     src = iframe.get('src') or iframe.get('data-src')
                     if src:
@@ -129,7 +126,6 @@ def get_movies():
         res = requests.get(MOVIES_URL, headers=HEADERS, timeout=10)
         if res.status_code == 200:
             soup = BeautifulSoup(res.text, 'html.parser')
-            # استخراج البطاقات والأفلام
             cards = soup.find_all(['div', 'a'], class_=lambda c: c and any(x in c.lower() for x in ['movie', 'film', 'item', 'entry', 'post']))
 
             for card in cards:
@@ -153,7 +149,6 @@ def get_movies():
     except Exception as e:
         print(f"Movie Error: {e}")
 
-    # خيار احتياطي في حال عدم توفر أفلام من الموقع
     if not movies:
         movies = [
             {
@@ -165,7 +160,7 @@ def get_movies():
 
     return {"success": True, "count": len(movies), "data": movies}
 
-# --- البروكسي العامة ---
+# --- البروكسي ---
 
 @app.get("/proxy")
 def proxy_stream(url: str = Query(...)):
