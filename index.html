@@ -3,315 +3,149 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BIBSSA TV Pro</title>
-    <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js"></script>
+    <title>BIBSSA TV - PWA</title>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#00d2ff">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
         :root {
             --primary: #00d2ff;
-            --primary-hover: #007bff;
-            --bg-dark: #0a0a0c;
+            --bg-dark: #0d0e12;
             --card-bg: rgba(255, 255, 255, 0.05);
             --border: rgba(255, 255, 255, 0.1);
         }
 
-        * { box-sizing: border-box; }
-        body { 
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
-            color: #fff; 
-            margin: 0; 
-            padding: 15px;
-            background: linear-gradient(rgba(10, 10, 12, 0.9), rgba(10, 10, 12, 0.9)), 
-                        url('bg.jpg') no-repeat center center fixed;
-            background-size: cover;
-            min-height: 100vh;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg-dark); color: #fff; padding-bottom: 70px; }
 
-        .header { text-align: center; margin-bottom: 20px; }
-        .header h1 { margin: 0; font-size: 26px; color: var(--primary); font-weight: 800; letter-spacing: 1px; }
+        /* Navbar & Header */
+        header { background: rgba(13, 14, 18, 0.9); padding: 15px; text-align: center; border-bottom: 1px solid var(--border); sticky: top: 0; z-index: 100; backdrop-filter: blur(10px); }
+        header h1 { color: var(--primary); font-size: 22px; font-weight: 800; }
 
-        .player-container { 
-            max-width: 900px; 
-            margin: 0 auto 20px auto; 
-            position: relative;
-            background: #000;
-            border-radius: 16px;
-            overflow: hidden;
-            box-shadow: 0 12px 40px rgba(0,0,0,0.8);
-            border: 1px solid var(--border);
-        }
+        /* Video Player */
+        .player-box { width: 100%; max-width: 900px; margin: 10px auto; background: #000; position: relative; aspect-ratio: 16/9; border-radius: 12px; overflow: hidden; }
+        video { width: 100%; height: 100%; object-fit: contain; }
 
-        video { 
-            width: 100%; 
-            height: 100%;
-            display: block; 
-            aspect-ratio: 16/9; 
-            object-fit: contain; 
-        }
+        /* Tabs Navigation */
+        .tabs { display: flex; justify-content: center; gap: 10px; margin: 15px 0; }
+        .tab-btn { background: var(--card-bg); color: #ccc; border: 1px solid var(--border); padding: 10px 20px; border-radius: 20px; cursor: pointer; font-weight: bold; }
+        .tab-btn.active { background: var(--primary); color: #000; }
 
-        /* أدوات الشاشة فوق المشغل */
-        .player-actions {
-            position: absolute;
-            top: 12px;
-            left: 12px;
-            display: flex;
-            gap: 8px;
-            z-index: 10;
-        }
+        /* Content Grids */
+        .container { max-width: 1000px; margin: 0 auto; padding: 10px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+        .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 10px; text-align: center; cursor: pointer; transition: 0.2s; }
+        .card:hover { border-color: var(--primary); transform: translateY(-3px); }
+        .card img { width: 100%; height: 180px; object-fit: cover; border-radius: 8px; }
+        .card h4 { font-size: 13px; margin-top: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-        .action-btn {
-            background: rgba(0, 0, 0, 0.65);
-            color: #fff;
-            border: 1px solid var(--border);
-            padding: 8px 12px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 12px;
-            font-weight: bold;
-            backdrop-filter: blur(5px);
-            transition: all 0.2s;
-        }
+        /* Matches List */
+        .match-item { display: flex; justify-content: space-between; align-items: center; background: var(--card-bg); border: 1px solid var(--border); padding: 12px 16px; border-radius: 10px; margin-bottom: 8px; cursor: pointer; }
+        .match-item:hover { border-color: var(--primary); }
+        .team { font-weight: bold; font-size: 14px; }
+        .vs { color: var(--primary); font-size: 12px; background: rgba(0,210,255,0.1); padding: 4px 8px; border-radius: 6px; }
 
-        .action-btn:hover {
-            background: var(--primary);
-            color: #000;
-        }
-
-        .player-container:-webkit-full-screen { width: 100vw; height: 100vh; border-radius: 0; }
-        .player-container:-moz-full-screen { width: 100vw; height: 100vh; border-radius: 0; }
-        .player-container:fullscreen { width: 100vw; height: 100vh; border-radius: 0; }
-        
-        .player-container:fullscreen video {
-            aspect-ratio: auto;
-            object-fit: contain;
-        }
-
-        .controls { 
-            max-width: 900px; 
-            margin: 0 auto 15px auto; 
-            display: flex; 
-            gap: 10px; 
-            flex-wrap: wrap;
-        }
-
-        input, select { 
-            background: rgba(20, 20, 25, 0.85); 
-            color: #fff; 
-            border: 1px solid var(--border); 
-            padding: 12px 16px; 
-            border-radius: 10px; 
-            font-size: 14px; 
-            outline: none; 
-            backdrop-filter: blur(10px);
-            transition: border-color 0.3s;
-        }
-
-        input:focus, select:focus { border-color: var(--primary); }
-        select { flex: 1; min-width: 180px; }
-        input { flex: 2; min-width: 200px; }
-
-        .list { 
-            display: grid; 
-            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); 
-            gap: 10px; 
-            max-height: 360px; 
-            overflow-y: auto; 
-            padding: 12px; 
-            max-width: 900px; 
-            margin: 0 auto;
-            background: var(--card-bg);
-            border-radius: 16px;
-            backdrop-filter: blur(12px);
-            border: 1px solid var(--border);
-        }
-
-        .channel-btn { 
-            background: rgba(30, 30, 38, 0.7); 
-            color: #d1d5db; 
-            border: 1px solid var(--border); 
-            padding: 14px 10px; 
-            border-radius: 10px; 
-            cursor: pointer; 
-            font-size: 13px; 
-            font-weight: 600; 
-            transition: all 0.2s ease;
-            text-overflow: ellipsis; 
-            overflow: hidden; 
-            white-space: nowrap; 
-        }
-
-        .channel-btn:hover { 
-            background: var(--primary-hover); 
-            color: #fff; 
-            transform: translateY(-2px); 
-            box-shadow: 0 4px 15px rgba(0, 123, 255, 0.4);
-        }
-
-        .channel-btn.active { 
-            background: var(--primary); 
-            color: #000; 
-            border-color: var(--primary); 
-            font-weight: bold;
-        }
-
-        .status-msg { text-align: center; grid-column: 1/-1; padding: 20px; color: #888; }
+        /* Bottom Nav */
+        .bottom-nav { position: fixed; bottom: 0; width: 100%; background: #121318; border-top: 1px solid var(--border); display: flex; justify-content: space-around; padding: 10px 0; }
+        .nav-item { color: #888; text-decoration: none; font-size: 12px; display: flex; flex-direction: column; align-items: center; cursor: pointer; }
+        .nav-item.active { color: var(--primary); }
     </style>
 </head>
 <body>
 
-    <div class="header">
+    <header>
         <h1>BIBSSA TV 📺</h1>
-    </div>
+    </header>
 
-    <div class="player-container" id="player-box">
-        <div class="player-actions">
-            <button class="action-btn" onclick="toggleFullscreen()">شاشة كاملة ⛶</button>
-            <button class="action-btn" onclick="togglePip()">نافذة عائمة 🗔</button>
-        </div>
+    <div class="player-box">
         <video id="video" controls autoplay playsinline></video>
     </div>
 
-    <div class="controls">
-        <select id="category-select" onchange="filterChannels()">
-            <option value="ALL">جميع الفئات</option>
-        </select>
-        <input type="text" id="search-input" placeholder="بحث عن قناة..." oninput="filterChannels()">
+    <div class="container">
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('sports')">⚽ المباريات الحية</button>
+            <button class="tab-btn" onclick="switchTab('cinema')">🎬 الأفلام والسينما</button>
+        </div>
+
+        <!-- Sports Section -->
+        <div id="sports-sec">
+            <div id="matches-list">جاري تحميل مباريات اليوم...</div>
+        </div>
+
+        <!-- Cinema Section -->
+        <div id="cinema-sec" style="display: none;">
+            <div class="grid" id="movies-grid">جاري تحميل الأفلام...</div>
+        </div>
     </div>
 
-    <div class="list" id="channel-list">
-        <div class="status-msg">جاري تحميل القنوات...</div>
+    <div class="bottom-nav">
+        <div class="nav-item active" onclick="switchTab('sports')">⚽ المباريات</div>
+        <div class="nav-item" onclick="switchTab('cinema')">🎬 الأفلام</div>
     </div>
 
     <script>
         const video = document.getElementById('video');
-        const playerBox = document.getElementById('player-box');
-        let flvPlayer = null;
-        let hlsPlayer = null;
-        let allChannels = [];
+        let hls = null;
 
-        // تفعيل وضع النافذة العائمة (Picture-in-Picture)
-        async function togglePip() {
-            try {
-                if (document.pictureInPictureElement) {
-                    await document.exitPictureInPicture();
-                } else if (document.pictureInPictureEnabled && !video.paused) {
-                    await video.requestPictureInPicture();
-                }
-            } catch (err) {
-                console.log("Picture-in-Picture error: ", err);
-            }
-        }
+        function playStream(url) {
+            const proxyUrl = `/proxy?url=${encodeURIComponent(url)}`;
+            if (hls) hls.destroy();
 
-        // التبديل التلقائي للنافذة العائمة عند مغادرة/تصغير الصفحة
-        document.addEventListener('visibilitychange', async () => {
-            if (document.hidden && !video.paused && document.pictureInPictureEnabled) {
-                try {
-                    if (!document.pictureInPictureElement) {
-                        await video.requestPictureInPicture();
-                    }
-                } catch (e) {
-                    console.log("Auto PiP error: ", e);
-                }
-            }
-        });
-
-        function toggleFullscreen() {
-            if (!document.fullscreenElement) {
-                if (playerBox.requestFullscreen) {
-                    playerBox.requestFullscreen();
-                } else if (playerBox.webkitRequestFullscreen) {
-                    playerBox.webkitRequestFullscreen();
-                } else if (playerBox.msRequestFullscreen) {
-                    playerBox.msRequestFullscreen();
-                }
-
-                if (screen.orientation && screen.orientation.lock) {
-                    screen.orientation.lock('landscape').catch(() => {});
-                }
-            } else {
-                if (document.exitFullscreen) {
-                    document.exitFullscreen();
-                }
-                if (screen.orientation && screen.orientation.unlock) {
-                    screen.orientation.unlock();
-                }
-            }
-        }
-
-        function playStream(originalUrl, btnElement) {
-            const proxyUrl = `/proxy?url=${encodeURIComponent(originalUrl)}`;
-
-            document.querySelectorAll('.channel-btn').forEach(b => b.classList.remove('active'));
-            if(btnElement) btnElement.classList.add('active');
-
-            if (flvPlayer) { flvPlayer.destroy(); flvPlayer = null; }
-            if (hlsPlayer) { hlsPlayer.destroy(); hlsPlayer = null; }
-
-            if (Hls.isSupported() && originalUrl.includes('.m3u8')) {
-                hlsPlayer = new Hls();
-                hlsPlayer.loadSource(proxyUrl);
-                hlsPlayer.attachMedia(video);
-                hlsPlayer.on(Hls.Events.MANIFEST_PARSED, () => video.play());
-            } else if (mpegts.getFeatureList().mseLivePlayback) {
-                flvPlayer = mpegts.createPlayer({ type: 'mse', isLive: true, url: proxyUrl });
-                flvPlayer.attachMediaElement(video);
-                flvPlayer.load();
-                flvPlayer.play().catch(e => console.log(e));
+            if (Hls.isSupported() && url.includes('.m3u8')) {
+                hls = new Hls();
+                hls.loadSource(proxyUrl);
+                hls.attachMedia(video);
+                hls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
             } else {
                 video.src = proxyUrl;
                 video.play();
             }
         }
 
-        async function loadChannels() {
-            try {
-                const res = await fetch('/fetch-live');
-                const data = await res.json();
-                allChannels = data.data;
-
-                populateCategories();
-                filterChannels();
-            } catch (err) {
-                document.getElementById('channel-list').innerHTML = '<div class="status-msg">فشل تحميل القنوات، تأكد من الاتصال.</div>';
-            }
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('sports-sec').style.display = tab === 'sports' ? 'block' : 'none';
+            document.getElementById('cinema-sec').style.display = tab === 'cinema' ? 'block' : 'none';
+            if (tab === 'sports') loadMatches(); else loadMovies();
         }
 
-        function populateCategories() {
-            const select = document.getElementById('category-select');
-            const categories = ['ALL', ...new Set(allChannels.map(ch => ch.group))];
-            
-            select.innerHTML = categories.map(cat => 
-                `<option value="${cat}">${cat === 'ALL' ? 'كل الفئات 📋' : cat}</option>`
-            ).join('');
+        async function loadMatches() {
+            const res = await fetch('/api/matches');
+            const data = await res.json();
+            const container = document.getElementById('matches-list');
+            container.innerHTML = data.data.map(m => `
+                <div class="match-item" onclick="loadMatchServers('${m.match_page}')">
+                    <span class="team">${m.home_team}</span>
+                    <span class="vs">${m.status}</span>
+                    <span class="team">${m.away_team}</span>
+                </div>
+            `).join('') || 'لا توجد مباريات جارية الآن';
         }
 
-        function filterChannels() {
-            const selectedCat = document.getElementById('category-select').value;
-            const searchQuery = document.getElementById('search-input').value.toLowerCase();
-            const container = document.getElementById('channel-list');
-            container.innerHTML = '';
-
-            const filtered = allChannels.filter(ch => {
-                const matchesCat = selectedCat === 'ALL' || ch.group === selectedCat;
-                const matchesSearch = ch.title.toLowerCase().includes(searchQuery);
-                return matchesCat && matchesSearch;
-            });
-
-            if (filtered.length === 0) {
-                container.innerHTML = '<div class="status-msg">لا توجد قنوات مطابقة</div>';
-                return;
-            }
-
-            filtered.forEach(ch => {
-                const btn = document.createElement('button');
-                btn.className = 'channel-btn';
-                btn.innerText = ch.title;
-                btn.onclick = (e) => playStream(ch.stream_url, e.target);
-                container.appendChild(btn);
-            });
+        async function loadMatchServers(pageUrl) {
+            const res = await fetch(`/api/match-servers?page_url=${encodeURIComponent(pageUrl)}`);
+            const data = await res.json();
+            if (data.servers.length > 0) playStream(data.servers[0].stream_url);
         }
 
-        loadChannels();
+        async function loadMovies() {
+            const res = await fetch('/api/movies');
+            const data = await res.json();
+            const grid = document.getElementById('movies-grid');
+            grid.innerHTML = data.data.map(m => `
+                <div class="card" onclick="alert('جاري تجهيز المشغل المباشر للفلم')">
+                    <img src="${m.poster || 'https://via.placeholder.com/150'}" />
+                    <h4>${m.title}</h4>
+                </div>
+            `).join('');
+        }
+
+        // Service Worker Registration for PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js');
+        }
+
+        loadMatches();
     </script>
 </body>
 </html>
