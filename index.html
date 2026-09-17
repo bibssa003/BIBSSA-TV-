@@ -6,122 +6,177 @@
     <title>BIBSSA TV</title>
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#00d2ff">
-    <!-- مكتبة مشغل Video.js القوي -->
-    <link href="https://vjs.zencdn.net/7.20.3/video-js.css" rel="stylesheet" />
-    <script src="https://vjs.zencdn.net/7.20.3/video.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
-        :root { --primary: #00d2ff; --bg: #0d0e12; --card: #181a20; --border: #2a2d37; }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, sans-serif; }
-        body { background: var(--bg); color: #fff; padding-bottom: 70px; }
-        header { background: #121318; padding: 12px; text-align: center; border-bottom: 1px solid var(--border); }
-        header h1 { color: var(--primary); font-size: 20px; }
+        :root {
+            --primary: #00d2ff;
+            --bg: #090a0f;
+            --card-bg: #13151b;
+            --border: #222634;
+            --text-muted: #8a8f9d;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background: var(--bg); color: #fff; padding-bottom: 80px; }
+
+        header { background: #0f1117; padding: 15px; text-align: center; border-bottom: 1px solid var(--border); sticky: top: 0; z-index: 100; }
+        header h1 { color: var(--primary); font-size: 22px; font-weight: 800; letter-spacing: 1px; }
+
+        .player-container { width: 100%; max-width: 900px; margin: 15px auto; background: #000; aspect-ratio: 16/9; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); position: relative; }
+        video, iframe { width: 100%; height: 100%; border: none; }
+
+        .vlc-bar { max-width: 900px; margin: 0 auto 15px auto; display: flex; gap: 10px; justify-content: center; }
+        .vlc-btn { background: #e66000; color: #fff; border: none; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; text-decoration: none; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
+
+        .tabs { display: flex; justify-content: center; gap: 12px; margin: 20px 0; }
+        .tab-btn { background: var(--card-bg); color: var(--text-muted); border: 1px solid var(--border); padding: 10px 24px; border-radius: 25px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .tab-btn.active { background: var(--primary); color: #000; border-color: var(--primary); }
+
+        .container { max-width: 950px; margin: 0 auto; padding: 0 12px; }
         
-        .player-wrapper { width: 100%; max-width: 850px; margin: 10px auto; aspect-ratio: 16/9; background: #000; border-radius: 10px; overflow: hidden; position: relative; }
-        .video-js { width: 100% !important; height: 100% !important; }
-        iframe { width: 100%; height: 100%; border: none; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
+        .movie-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 8px; text-align: center; cursor: pointer; transition: 0.2s; }
+        .movie-card:hover { border-color: var(--primary); transform: translateY(-3px); }
+        .movie-card img { width: 100%; height: 180px; object-fit: cover; border-radius: 8px; }
+        .movie-card h4 { font-size: 12px; margin-top: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-        .tabs { display: flex; justify-content: center; gap: 10px; margin: 15px; }
-        .tab-btn { background: var(--card); color: #888; border: 1px solid var(--border); padding: 8px 16px; border-radius: 20px; cursor: pointer; font-weight: bold; }
-        .tab-btn.active { background: var(--primary); color: #000; }
+        .match-card { display: flex; justify-content: space-between; align-items: center; background: var(--card-bg); border: 1px solid var(--border); padding: 14px 18px; border-radius: 10px; margin-bottom: 10px; cursor: pointer; transition: 0.2s; }
+        .match-card:hover { border-color: var(--primary); }
+        .team { font-weight: bold; font-size: 14px; width: 40%; }
+        .team.away { text-align: left; }
+        .status { background: rgba(0, 210, 255, 0.15); color: var(--primary); padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: bold; }
 
-        .container { max-width: 900px; margin: 0 auto; padding: 10px; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
-        .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 6px; text-align: center; cursor: pointer; }
-        .card img { width: 100%; height: 160px; object-fit: cover; border-radius: 6px; }
-        .card h4 { font-size: 11px; margin-top: 6px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-
-        .match-card { display: flex; justify-content: space-between; align-items: center; background: var(--card); border: 1px solid var(--border); padding: 12px; border-radius: 8px; margin-bottom: 8px; cursor: pointer; }
-        .team { font-weight: bold; font-size: 13px; }
-        .status { background: rgba(0,210,255,0.2); color: var(--primary); padding: 3px 8px; border-radius: 4px; font-size: 11px; }
-
-        .btn-direct { display: block; width: 100%; text-align: center; background: #222; color: #fff; text-decoration: none; padding: 6px; font-size: 11px; border-radius: 4px; margin-top: 5px; }
+        .bottom-nav { position: fixed; bottom: 0; width: 100%; background: #0f1117; border-top: 1px solid var(--border); display: flex; justify-content: space-around; padding: 12px 0; z-index: 100; }
+        .nav-item { color: var(--text-muted); text-decoration: none; font-size: 12px; cursor: pointer; font-weight: bold; }
+        .nav-item.active { color: var(--primary); }
     </style>
 </head>
 <body>
 
-    <header><h1>BIBSSA TV 📺</h1></header>
+    <header>
+        <h1>BIBSSA TV 📺</h1>
+    </header>
 
-    <div class="player-wrapper" id="player-box">
-        <video id="my-video" class="video-js vjs-default-skin" controls preload="auto" data-setup='{}'></video>
+    <div class="player-container" id="player-box">
+        <video id="video" controls autoplay playsinline></video>
+    </div>
+
+    <div class="vlc-bar">
+        <a id="vlc-link" href="#" target="_blank" class="vlc-btn" style="display:none;">
+            🍊 فتح المقطع في مشغل VLC الخارجية
+        </a>
     </div>
 
     <div class="container">
         <div class="tabs">
-            <button class="tab-btn active" id="btn-sports" onclick="showTab('sports')">⚽ المباريات الحية</button>
-            <button class="tab-btn" id="btn-cinema" onclick="showTab('cinema')">🎬 الأفلام والسينما</button>
+            <button class="tab-btn active" id="tab-sports" onclick="switchTab('sports')">⚽ المباريات الحية</button>
+            <button class="tab-btn" id="tab-cinema" onclick="switchTab('cinema')">🎬 الأفلام والسينما</button>
         </div>
 
         <div id="sports-sec">
-            <div id="matches-list">جاري جلب المباريات والقنوات...</div>
+            <div id="matches-list">جاري جلب البث المباشر...</div>
         </div>
 
-        <div id="cinema-sec" style="display:none;">
-            <div class="grid" id="movies-grid">جاري جلب الأفلام...</div>
+        <div id="cinema-sec" style="display: none;">
+            <div class="grid" id="movies-grid">جاري جلب مكتبة الأفلام...</div>
         </div>
     </div>
 
-    <script>
-        let player = videojs('my-video');
+    <div class="bottom-nav">
+        <div class="nav-item active" id="nav-sports" onclick="switchTab('sports')">⚽ المباريات</div>
+        <div class="nav-item" id="nav-cinema" onclick="switchTab('cinema')">🎬 الأفلام</div>
+    </div>
 
-        function playStream(url, isIframe = false) {
-            const box = document.getElementById('player-box');
-            if (isIframe) {
-                box.innerHTML = `<iframe src="${url}" allowfullscreen allow="autoplay"></iframe>`;
-            } else {
-                box.innerHTML = `<video id="my-video" class="video-js vjs-default-skin" controls preload="auto"></video>`;
-                player = videojs('my-video');
-                player.src({ src: url, type: url.includes('.m3u8') ? 'application/x-mpegURL' : 'video/mp4' });
-                player.play();
-            }
-        }
+    <script>
+        const playerBox = document.getElementById('player-box');
+        const vlcLink = document.getElementById('vlc-link');
+        let hls = null;
 
         async function playMedia(pageUrl) {
-            const box = document.getElementById('player-box');
-            box.innerHTML = `<div style="display:flex;justify-content:center;align-items:center;height:100%;color:#00d2ff;">جاري تجهيز المشغل...</div>`;
+            playerBox.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100%;color:#00d2ff;font-weight:bold;">جاري تجاوز الحماية واستدعاء المشغل...</div>';
+            vlcLink.style.display = 'none';
 
             try {
                 const res = await fetch(`/api/get-player?page_url=${encodeURIComponent(pageUrl)}`);
                 const data = await res.json();
-                
-                if (data.url) {
-                    playStream(data.url, data.type === 'iframe');
-                } else {
-                    playStream("https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8");
+
+                if (data.type === 'direct') {
+                    const streamUrl = window.location.origin + `/proxy?url=${encodeURIComponent(data.url)}`;
+                    
+                    // تجهيز رابط VLC
+                    vlcLink.href = `vlc://${data.url}`;
+                    vlcLink.style.display = 'inline-flex';
+
+                    playerBox.innerHTML = '<video id="video" controls autoplay playsinline></video>';
+                    const video = document.getElementById('video');
+
+                    if (hls) hls.destroy();
+
+                    if (Hls.isSupported() && data.url.includes('.m3u8')) {
+                        hls = new Hls();
+                        hls.loadSource(streamUrl);
+                        hls.attachMedia(video);
+                        hls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
+                    } else {
+                        video.src = data.url;
+                        video.play();
+                    }
+                } else if (data.type === 'iframe') {
+                    playerBox.innerHTML = `<iframe src="${data.url}" allowfullscreen allow="autoplay"></iframe>`;
                 }
-            } catch (e) {
-                window.open(pageUrl, '_blank');
+            } catch (err) {
+                playerBox.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100%;color:#ff4757;">تعذر تشغيل هذا السيرفر تلقائياً.</div>';
             }
         }
 
-        function showTab(type) {
-            document.getElementById('sports-sec').style.display = type === 'sports' ? 'block' : 'none';
-            document.getElementById('cinema-sec').style.display = type === 'cinema' ? 'block' : 'none';
-            document.getElementById('btn-sports').classList.toggle('active', type === 'sports');
-            document.getElementById('btn-cinema').classList.toggle('active', type === 'cinema');
-            if(type === 'sports') loadMatches(); else loadMovies();
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn, .nav-item').forEach(b => b.classList.remove('active'));
+            document.getElementById('sports-sec').style.display = tab === 'sports' ? 'block' : 'none';
+            document.getElementById('cinema-sec').style.display = tab === 'cinema' ? 'block' : 'none';
+            document.getElementById(tab === 'sports' ? 'tab-sports' : 'tab-cinema').classList.add('active');
+            document.getElementById(tab === 'sports' ? 'nav-sports' : 'nav-cinema').classList.add('active');
+            if (tab === 'sports') loadMatches(); else loadMovies();
         }
 
         async function loadMatches() {
-            const res = await fetch('/api/matches');
-            const data = await res.json();
-            document.getElementById('matches-list').innerHTML = data.data.map(m => `
-                <div class="match-card" onclick="playMedia('${m.match_page}')">
-                    <span class="team">${m.home_team}</span>
-                    <span class="status">${m.status}</span>
-                    <span class="team">${m.away_team}</span>
-                </div>
-            `).join('');
+            const container = document.getElementById('matches-list');
+            try {
+                const res = await fetch('/api/matches');
+                const data = await res.json();
+                if (data.data.length === 0) {
+                    container.innerHTML = '<div style="text-align:center;color:#8a8f9d;padding:20px;">لا توجد مباريات جارية حالياً</div>';
+                    return;
+                }
+                container.innerHTML = data.data.map(m => `
+                    <div class="match-card" onclick="playMedia('${m.match_page}')">
+                        <span class="team">${m.home_team}</span>
+                        <span class="status">${m.status}</span>
+                        <span class="team away">${m.away_team}</span>
+                    </div>
+                `).join('');
+            } catch {
+                container.innerHTML = '<div style="text-align:center;color:#ff4757;padding:20px;">خطأ في جلب المباريات</div>';
+            }
         }
 
         async function loadMovies() {
-            const res = await fetch('/api/movies');
-            const data = await res.json();
-            document.getElementById('movies-grid').innerHTML = data.data.map(m => `
-                <div class="card" onclick="playMedia('${m.details_url}')">
-                    <img src="${m.poster}" onerror="this.src='https://via.placeholder.com/150x220?text=No+Image'"/>
-                    <h4>${m.title}</h4>
-                </div>
-            `).join('');
+            const grid = document.getElementById('movies-grid');
+            try {
+                const res = await fetch('/api/movies');
+                const data = await res.json();
+                grid.innerHTML = data.data.map(m => `
+                    <div class="movie-card" onclick="playMedia('${m.details_url}')">
+                        <img src="${m.poster}" onerror="this.src='https://via.placeholder.com/150x220?text=No+Cover'"/>
+                        <h4>${m.title}</h4>
+                    </div>
+                `).join('');
+            } catch {
+                grid.innerHTML = '<div style="text-align:center;color:#ff4757;padding:20px;">خطأ في جلب الأفلام</div>';
+            }
+        }
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js');
         }
 
         loadMatches();
