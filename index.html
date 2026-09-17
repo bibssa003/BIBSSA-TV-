@@ -18,34 +18,28 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg-dark); color: #fff; padding-bottom: 70px; }
 
-        /* Navbar & Header */
         header { background: rgba(13, 14, 18, 0.9); padding: 15px; text-align: center; border-bottom: 1px solid var(--border); sticky: top: 0; z-index: 100; backdrop-filter: blur(10px); }
         header h1 { color: var(--primary); font-size: 22px; font-weight: 800; }
 
-        /* Video Player */
-        .player-box { width: 100%; max-width: 900px; margin: 10px auto; background: #000; position: relative; aspect-ratio: 16/9; border-radius: 12px; overflow: hidden; }
-        video { width: 100%; height: 100%; object-fit: contain; }
+        .player-box { width: 100%; max-width: 900px; margin: 10px auto; background: #000; position: relative; aspect-ratio: 16/9; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
+        video, iframe { width: 100%; height: 100%; border: none; object-fit: contain; }
 
-        /* Tabs Navigation */
         .tabs { display: flex; justify-content: center; gap: 10px; margin: 15px 0; }
         .tab-btn { background: var(--card-bg); color: #ccc; border: 1px solid var(--border); padding: 10px 20px; border-radius: 20px; cursor: pointer; font-weight: bold; }
         .tab-btn.active { background: var(--primary); color: #000; }
 
-        /* Content Grids */
         .container { max-width: 1000px; margin: 0 auto; padding: 10px; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
-        .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 10px; text-align: center; cursor: pointer; transition: 0.2s; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
+        .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 8px; text-align: center; cursor: pointer; transition: 0.2s; }
         .card:hover { border-color: var(--primary); transform: translateY(-3px); }
-        .card img { width: 100%; height: 180px; object-fit: cover; border-radius: 8px; }
-        .card h4 { font-size: 13px; margin-top: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .card img { width: 100%; height: 170px; object-fit: cover; border-radius: 8px; }
+        .card h4 { font-size: 12px; margin-top: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-        /* Matches List */
         .match-item { display: flex; justify-content: space-between; align-items: center; background: var(--card-bg); border: 1px solid var(--border); padding: 12px 16px; border-radius: 10px; margin-bottom: 8px; cursor: pointer; }
         .match-item:hover { border-color: var(--primary); }
-        .team { font-weight: bold; font-size: 14px; }
-        .vs { color: var(--primary); font-size: 12px; background: rgba(0,210,255,0.1); padding: 4px 8px; border-radius: 6px; }
+        .team { font-weight: bold; font-size: 13px; }
+        .vs { color: var(--primary); font-size: 11px; background: rgba(0,210,255,0.1); padding: 4px 8px; border-radius: 6px; }
 
-        /* Bottom Nav */
         .bottom-nav { position: fixed; bottom: 0; width: 100%; background: #121318; border-top: 1px solid var(--border); display: flex; justify-content: space-around; padding: 10px 0; }
         .nav-item { color: #888; text-decoration: none; font-size: 12px; display: flex; flex-direction: column; align-items: center; cursor: pointer; }
         .nav-item.active { color: var(--primary); }
@@ -57,22 +51,20 @@
         <h1>BIBSSA TV 📺</h1>
     </header>
 
-    <div class="player-box">
+    <div class="player-box" id="player-container">
         <video id="video" controls autoplay playsinline></video>
     </div>
 
     <div class="container">
         <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('sports')">⚽ المباريات الحية</button>
-            <button class="tab-btn" onclick="switchTab('cinema')">🎬 الأفلام والسينما</button>
+            <button class="tab-btn active" id="tab-sports" onclick="switchTab('sports')">⚽ المباريات الحية</button>
+            <button class="tab-btn" id="tab-cinema" onclick="switchTab('cinema')">🎬 الأفلام والسينما</button>
         </div>
 
-        <!-- Sports Section -->
         <div id="sports-sec">
-            <div id="matches-list">جاري تحميل مباريات اليوم...</div>
+            <div id="matches-list">جاري تحميل المباريات...</div>
         </div>
 
-        <!-- Cinema Section -->
         <div id="cinema-sec" style="display: none;">
             <div class="grid" id="movies-grid">جاري تحميل الأفلام...</div>
         </div>
@@ -84,21 +76,38 @@
     </div>
 
     <script>
-        const video = document.getElementById('video');
+        const playerContainer = document.getElementById('player-container');
         let hls = null;
 
-        function playStream(url) {
-            const proxyUrl = `/proxy?url=${encodeURIComponent(url)}`;
-            if (hls) hls.destroy();
+        async function playMedia(pageUrl) {
+            playerContainer.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100%;color:#00d2ff;">جاري استخراج واستدعاء المشغل...</div>';
+            
+            try {
+                const res = await fetch(`/api/get-player?page_url=${encodeURIComponent(pageUrl)}`);
+                const data = await res.json();
 
-            if (Hls.isSupported() && url.includes('.m3u8')) {
-                hls = new Hls();
-                hls.loadSource(proxyUrl);
-                hls.attachMedia(video);
-                hls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
-            } else {
-                video.src = proxyUrl;
-                video.play();
+                if (data.type === 'direct') {
+                    playerContainer.innerHTML = '<video id="video" controls autoplay playsinline></video>';
+                    const video = document.getElementById('video');
+                    const proxyUrl = `/proxy?url=${encodeURIComponent(data.url)}`;
+                    
+                    if (hls) hls.destroy();
+
+                    if (Hls.isSupported() && data.url.includes('.m3u8')) {
+                        hls = new Hls();
+                        hls.loadSource(proxyUrl);
+                        hls.attachMedia(video);
+                        hls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
+                    } else {
+                        video.src = data.url;
+                        video.play();
+                    }
+                } else if (data.type === 'iframe') {
+                    // تشغيل الإطار المباشر الشغال بدون إعلانات خارجية
+                    playerContainer.innerHTML = `<iframe src="${data.url}" allowfullscreen allow="autoplay"></iframe>`;
+                }
+            } catch (err) {
+                playerContainer.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100%;color:red;">تعذر تشغيل هذا السيرفر، جرب سيرفر آخر.</div>';
             }
         }
 
@@ -106,6 +115,7 @@
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.getElementById('sports-sec').style.display = tab === 'sports' ? 'block' : 'none';
             document.getElementById('cinema-sec').style.display = tab === 'cinema' ? 'block' : 'none';
+            document.getElementById(tab === 'sports' ? 'tab-sports' : 'tab-cinema').classList.add('active');
             if (tab === 'sports') loadMatches(); else loadMovies();
         }
 
@@ -114,18 +124,12 @@
             const data = await res.json();
             const container = document.getElementById('matches-list');
             container.innerHTML = data.data.map(m => `
-                <div class="match-item" onclick="loadMatchServers('${m.match_page}')">
+                <div class="match-item" onclick="playMedia('${m.match_page}')">
                     <span class="team">${m.home_team}</span>
                     <span class="vs">${m.status}</span>
                     <span class="team">${m.away_team}</span>
                 </div>
-            `).join('') || 'لا توجد مباريات جارية الآن';
-        }
-
-        async function loadMatchServers(pageUrl) {
-            const res = await fetch(`/api/match-servers?page_url=${encodeURIComponent(pageUrl)}`);
-            const data = await res.json();
-            if (data.servers.length > 0) playStream(data.servers[0].stream_url);
+            `).join('');
         }
 
         async function loadMovies() {
@@ -133,14 +137,13 @@
             const data = await res.json();
             const grid = document.getElementById('movies-grid');
             grid.innerHTML = data.data.map(m => `
-                <div class="card" onclick="alert('جاري تجهيز المشغل المباشر للفلم')">
-                    <img src="${m.poster || 'https://via.placeholder.com/150'}" />
+                <div class="card" onclick="playMedia('${m.details_url}')">
+                    <img src="${m.poster}" />
                     <h4>${m.title}</h4>
                 </div>
             `).join('');
         }
 
-        // Service Worker Registration for PWA
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/sw.js');
         }
