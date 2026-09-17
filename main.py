@@ -2,6 +2,7 @@ from fastapi import FastAPI, Query
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 import requests
+import re
 
 app = FastAPI()
 
@@ -14,16 +15,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# بيانات Ugeen الخاصة بك
-UGEEN_HOST = "http://ugeen.live:8080"
-UGEEN_USER = "kaicer_VIP0nqw7m"
-UGEEN_PASS = "8fwca2"
-
-UGEEN_M3U_URL = f"{UGEEN_HOST}/get.php?username={UGEEN_USER}&password={UGEEN_PASS}&type=m3u_plus&output=ts"
+# بيانات المصدر الجديد: Sir TV
+SIRTV_BASE_URL = "https://tvsiir.co/"
 BACKUP_M3U_URL = "https://iptv-org.github.io/iptv/index.m3u"
 
 HEADERS = {
-    "User-Agent": "VLC/3.0.18 LibVLC/3.0.18",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Referer": SIRTV_BASE_URL,
     "Accept": "*/*"
 }
 
@@ -33,7 +31,7 @@ def home():
 
 @app.get("/fetch-live")
 def fetch_live():
-    channels = parse_m3u(UGEEN_M3U_URL)
+    channels = fetch_sirtv_channels()
     if not channels:
         channels = parse_m3u(BACKUP_M3U_URL)
     return {"success": True, "count": len(channels), "data": channels}
@@ -41,12 +39,44 @@ def fetch_live():
 @app.get("/proxy")
 def proxy_stream(url: str = Query(...)):
     def stream_content():
-        with requests.get(url, headers=HEADERS, stream=True, timeout=15) as req:
-            for chunk in req.iter_content(chunk_size=8192):
-                if chunk:
-                    yield chunk
+        try:
+            with requests.get(url, headers=HEADERS, stream=True, timeout=15) as req:
+                for chunk in req.iter_content(chunk_size=8192):
+                    if chunk:
+                        yield chunk
+        except Exception:
+            pass
 
-    return StreamingResponse(stream_content(), media_type="video/mp2t")
+    # تحديد نوع الميديا بناءً على امتداد الرابط (M3U8 أو TS)
+    media_type = "application/x-mpegURL" if ".m3u8" in url else "video/mp2t"
+    return StreamingResponse(stream_content(), media_type=media_type)
+
+def fetch_sirtv_channels():
+    """ جلب القنوات وتصنيفها مباشرة من موقع Sir TV """
+    channels = []
+    try:
+        response = requests.get(SIRTV_BASE_URL, headers=HEADERS, timeout=10)
+        if response.status_code != 200:
+            return []
+
+        # محاولة البحث عن قائمة M3U المباشرة في الموقع إن وجدت
+        m3u_links = re.findall(r'href=["\'](http[s]?://[^\'"]+\.m3u[8]?)["\']', response.text)
+        if m3u_links:
+            return parse_m3u(m3u_links[0])
+
+        # جلب روابط البث المباشرة من أوساق الأعلام والمعاينات (HLS / M3U8)
+        streams = re.findall(r'(http[s]?://[^\'"\s]+\.m3u8[^\'"\s]*)', response.text)
+        
+        for idx, stream_url in enumerate(streams, 1):
+            channels.append({
+                "title": f"قناة Sir TV {idx}",
+                "group": "Sir TV المباشر",
+                "stream_url": stream_url
+            })
+
+        return channels
+    except Exception:
+        return []
 
 def parse_m3u(url):
     try:
@@ -62,13 +92,11 @@ def parse_m3u(url):
         for line in lines:
             line = line.strip()
             if line.startswith("#EXTINF:"):
-                # استخراج الفئة تلقائياً من الملف
                 if 'group-title="' in line:
                     current_group = line.split('group-title="')[1].split('"')[0]
                 else:
                     current_group = "عام"
 
-                # استخراج اسم القناة
                 if "," in line:
                     current_title = line.split(",")[-1]
 
@@ -82,5 +110,4 @@ def parse_m3u(url):
                 current_group = "عام"
 
         return channels
-    except Exception:
-        return []
+    except Excepti
