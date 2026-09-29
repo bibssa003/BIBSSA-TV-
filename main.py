@@ -12,8 +12,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ⚠️ بيانات سيرفر Xtream
-XTREAM_URL = "http://milo2080.com:80"
+# ⚠️ بيانات سيرفر 
+XtreamXTREAM_URL = "https://milo2080.com:80"
 USERNAME = "yqwgsr25au"
 PASSWORD = "guebgf707f"
 
