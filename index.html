@@ -3,122 +3,567 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BIBSSA TV</title>
+    <title>BIBSSA TV | منصة البث المباشر والترفيه</title>
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#00d2ff">
+    <!-- خط Cairo العربي من Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
         :root {
             --primary: #00d2ff;
-            --bg: #090a0f;
-            --card-bg: #13151b;
-            --border: #222634;
-            --text-muted: #8a8f9d;
+            --primary-glow: rgba(0, 210, 255, 0.4);
+            --accent: #ff0055;
+            --bg: #07090e;
+            --card-bg: rgba(18, 22, 32, 0.75);
+            --card-hover: rgba(26, 32, 48, 0.9);
+            --border: rgba(255, 255, 255, 0.08);
+            --text-main: #f0f4f8;
+            --text-muted: #8b95a5;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        body { background: var(--bg); color: #fff; padding-bottom: 80px; }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Cairo', system-ui, -apple-system, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
 
-        header { background: linear-gradient(135deg, #0f1117, #131a24); padding: 15px; text-align: center; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
-        header h1 { color: var(--primary); font-size: 22px; font-weight: 800; letter-spacing: 1px; text-shadow: 0 0 12px rgba(0,210,255,.4); }
+        body {
+            background: var(--bg);
+            background-image: 
+                radial-gradient(circle at 10% 10%, rgba(0, 210, 255, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(255, 0, 85, 0.04) 0%, transparent 40%);
+            background-attachment: fixed;
+            color: var(--text-main);
+            padding-bottom: 90px;
+            min-height: 100vh;
+        }
 
-        .player-container { width: 100%; max-width: 900px; margin: 15px auto; background: #000; aspect-ratio: 16/9; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); position: relative; }
-        video, iframe { width: 100%; height: 100%; border: none; }
+        /* ===== Header ===== */
+        header {
+            background: rgba(11, 14, 22, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            padding: 14px 20px;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
 
-        .vlc-bar { max-width: 900px; margin: 0 auto 15px auto; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
-        .vlc-btn { background: #e66000; color: #fff; border: none; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; text-decoration: none; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
+        header h1 {
+            color: #fff;
+            font-size: 24px;
+            font-weight: 900;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
 
-        .tabs { display: flex; justify-content: center; gap: 12px; margin: 20px 0; flex-wrap: wrap; }
-        .tab-btn { background: var(--card-bg); color: var(--text-muted); border: 1px solid var(--border); padding: 10px 24px; border-radius: 25px; cursor: pointer; font-weight: bold; transition: 0.3s; }
-        .tab-btn.active { background: var(--primary); color: #000; border-color: var(--primary); box-shadow: 0 0 14px rgba(0,210,255,.35); }
+        header h1 span {
+            color: var(--primary);
+            text-shadow: 0 0 15px var(--primary-glow);
+        }
 
-        .container { max-width: 950px; margin: 0 auto; padding: 0 12px; }
+        .container {
+            max-width: 1050px;
+            margin: 0 auto;
+            padding: 0 16px;
+        }
 
-        .filter-bar { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
-        .filter-bar select { background: var(--card-bg); color: #fff; border: 1px solid var(--border); padding: 9px 14px; border-radius: 8px; font-size: 13px; flex: 1; min-width: 140px; }
-        .search-box { background: var(--card-bg); color: #fff; border: 1px solid var(--border); padding: 9px 14px; border-radius: 8px; font-size: 13px; flex: 2; min-width: 180px; }
+        /* ===== Player Box ===== */
+        .player-wrapper {
+            margin: 20px auto 12px auto;
+            max-width: 950px;
+        }
 
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
-        .movie-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 8px; text-align: center; cursor: pointer; transition: 0.2s; }
-        .movie-card:hover { border-color: var(--primary); transform: translateY(-3px); }
-        .movie-card img { width: 100%; height: 180px; object-fit: cover; border-radius: 8px; }
-        .movie-card h4 { font-size: 12px; margin-top: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .player-container {
+            width: 100%;
+            background: #000;
+            aspect-ratio: 16/9;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid rgba(0, 210, 255, 0.2);
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 210, 255, 0.15);
+        }
 
-        .match-card { display: flex; justify-content: space-between; align-items: center; background: var(--card-bg); border: 1px solid var(--border); padding: 14px 18px; border-radius: 10px; margin-bottom: 10px; cursor: pointer; transition: 0.2s; }
-        .match-card:hover { border-color: var(--primary); }
-        .match-card img { width: 34px; height: 34px; object-fit: contain; border-radius: 6px; background: #000; }
-        .team { font-weight: bold; font-size: 14px; flex: 1; text-align: center; }
-        .status { background: rgba(0, 210, 255, 0.15); color: var(--primary); padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: bold; white-space: nowrap; }
+        video, iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            outline: none;
+        }
 
-        .episode-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; margin-top: 12px; }
-        .episode-btn { background: var(--card-bg); border: 1px solid var(--border); color: #fff; padding: 10px 6px; border-radius: 8px; cursor: pointer; font-size: 12px; text-align: center; transition: 0.2s; }
-        .episode-btn:hover { border-color: var(--primary); }
-        .episode-btn small { display: block; color: var(--text-muted); font-size: 10px; margin-top: 3px; }
+        .player-placeholder {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            color: var(--text-muted);
+            gap: 12px;
+            background: radial-gradient(circle, rgba(20,26,38,1) 0%, rgba(7,9,14,1) 100%);
+        }
 
-        .back-btn { background: var(--card-bg); color: var(--primary); border: 1px solid var(--border); padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: bold; margin-bottom: 12px; }
+        .player-placeholder p {
+            font-weight: 700;
+            font-size: 15px;
+            color: var(--primary);
+        }
 
-        .bottom-nav { position: fixed; bottom: 0; width: 100%; background: #0f1117; border-top: 1px solid var(--border); display: flex; justify-around: space-around; padding: 12px 0; z-index: 100; }
-        .nav-item { color: var(--text-muted); text-decoration: none; font-size: 12px; cursor: pointer; font-weight: bold; }
-        .nav-item.active { color: var(--primary); }
+        /* ===== VLC & Actions Bar ===== */
+        .vlc-bar {
+            max-width: 950px;
+            margin: 0 auto 20px auto;
+            display: flex;
+            justify-content: center;
+        }
 
-        .loading, .empty, .error { text-align: center; color: var(--text-muted); padding: 30px; }
-        .error { color: #ff4757; }
+        .vlc-btn {
+            background: linear-gradient(135deg, #ff7b00, #e65100);
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 13px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 15px rgba(230, 81, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .vlc-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(230, 81, 0, 0.5);
+        }
+
+        /* ===== Tabs ===== */
+        .tabs {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 24px 0;
+            background: rgba(15, 20, 30, 0.6);
+            padding: 6px;
+            border-radius: 30px;
+            border: 1px solid var(--border);
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .tab-btn {
+            flex: 1;
+            background: transparent;
+            color: var(--text-muted);
+            border: none;
+            padding: 10px 16px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .tab-btn.active {
+            background: var(--primary);
+            color: #000;
+            box-shadow: 0 0 18px var(--primary-glow);
+        }
+
+        /* ===== Filter & Search Bar ===== */
+        .filter-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 22px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filter-bar select, .search-box {
+            background: var(--card-bg);
+            color: var(--text-main);
+            border: 1px solid var(--border);
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 14px;
+            outline: none;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .filter-bar select {
+            flex: 1;
+            min-width: 150px;
+            cursor: pointer;
+        }
+
+        .search-box {
+            flex: 2;
+            min-width: 200px;
+        }
+
+        .filter-bar select:focus, .search-box:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 12px var(--primary-glow);
+        }
+
+        /* ===== Cards Grid ===== */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+            gap: 16px;
+        }
+
+        .movie-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .movie-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-6px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6), 0 0 15px var(--primary-glow);
+            background: var(--card-hover);
+        }
+
+        .movie-card .img-wrapper {
+            position: relative;
+            width: 100%;
+            height: 200px;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #0d1117;
+        }
+
+        .movie-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.4s ease;
+        }
+
+        .movie-card:hover img {
+            transform: scale(1.08);
+        }
+
+        .movie-card h4 {
+            font-size: 13px;
+            font-weight: 700;
+            margin-top: 10px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: var(--text-main);
+        }
+
+        /* ===== Live Matches Cards ===== */
+        .matches-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .match-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            padding: 14px 20px;
+            border-radius: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .match-card:hover {
+            border-color: var(--primary);
+            background: var(--card-hover);
+            transform: translateX(-4px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), 0 0 12px var(--primary-glow);
+        }
+
+        .match-card .info {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex: 1;
+        }
+
+        .match-card img {
+            width: 42px;
+            height: 42px;
+            object-fit: contain;
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 4px;
+            border: 1px solid var(--border);
+        }
+
+        .team {
+            font-weight: 800;
+            font-size: 15px;
+            color: #fff;
+        }
+
+        .status {
+            background: rgba(255, 0, 85, 0.15);
+            color: var(--accent);
+            border: 1px solid rgba(255, 0, 85, 0.3);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 800;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status::before {
+            content: '';
+            width: 7px;
+            height: 7px;
+            background: var(--accent);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--accent);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.3; }
+            100% { opacity: 1; }
+        }
+
+        /* ===== Episodes View ===== */
+        .episode-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .episode-btn {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 12px 8px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 700;
+            text-align: center;
+            transition: all 0.2s ease;
+        }
+
+        .episode-btn:hover {
+            border-color: var(--primary);
+            background: var(--primary);
+            color: #000;
+            box-shadow: 0 0 12px var(--primary-glow);
+        }
+
+        .episode-btn small {
+            display: block;
+            color: var(--text-muted);
+            font-size: 11px;
+            margin-top: 2px;
+            font-weight: 400;
+        }
+
+        .episode-btn:hover small {
+            color: #222;
+        }
+
+        .back-btn {
+            background: var(--card-bg);
+            color: var(--primary);
+            border: 1px solid var(--primary);
+            padding: 10px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 800;
+            margin-bottom: 16px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .back-btn:hover {
+            background: var(--primary);
+            color: #000;
+            box-shadow: 0 0 15px var(--primary-glow);
+        }
+
+        /* ===== Bottom Mobile Nav ===== */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(11, 14, 22, 0.92);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-around;
+            padding: 12px 0;
+            z-index: 100;
+            box-shadow: 0 -5px 25px rgba(0,0,0,0.6);
+        }
+
+        .nav-item {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 12px;
+            cursor: pointer;
+            font-weight: 700;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.3s ease;
+        }
+
+        .nav-item.active {
+            color: var(--primary);
+            text-shadow: 0 0 10px var(--primary-glow);
+        }
+
+        /* ===== Loading & Empty States ===== */
+        .loading, .empty, .error {
+            text-align: center;
+            color: var(--text-muted);
+            padding: 40px 20px;
+            font-weight: 700;
+            font-size: 15px;
+        }
+
+        .error {
+            color: #ff4757;
+        }
+
+        /* ===== Responsive Media Queries ===== */
+        @media (max-width: 600px) {
+            .grid {
+                grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+                gap: 10px;
+            }
+            .movie-card .img-wrapper {
+                height: 155px;
+            }
+            .match-card {
+                padding: 12px 14px;
+            }
+            .team {
+                font-size: 13px;
+            }
+        }
     </style>
 </head>
 <body>
 
     <header>
-        <h1>BIBSSA TV 📺</h1>
+        <h1><span>BIBSSA</span> TV 📺</h1>
     </header>
 
-    <div class="player-container" id="player-box">
-        <video id="video" controls autoplay playsinline></video>
-    </div>
-
-    <div class="vlc-bar">
-        <a id="vlc-link" href="#" target="_blank" class="vlc-btn" style="display:none;">
-            🍊 فتح المقطع في مشغل VLC الخارجي
-        </a>
-    </div>
-
     <div class="container">
+        <!-- Player Container -->
+        <div class="player-wrapper">
+            <div class="player-container" id="player-box">
+                <div class="player-placeholder">
+                    <svg width="50" height="50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5 3 19 12 5 21 5 3" fill="var(--primary)"></polygon></svg>
+                    <p>اختر قناة أو فيلماً لبدء التشغيل الفوري</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- External Player Bar -->
+        <div class="vlc-bar">
+            <a id="vlc-link" href="#" target="_blank" class="vlc-btn" style="display:none;">
+                🍊 فتح البث في مشغل VLC الخارجي
+            </a>
+        </div>
+
+        <!-- Main Category Tabs -->
         <div class="tabs">
-            <button class="tab-btn active" id="tab-sports" onclick="switchTab('sports')">⚽ المباريات الحية</button>
+            <button class="tab-btn active" id="tab-sports" onclick="switchTab('sports')">⚽ المباشر</button>
             <button class="tab-btn" id="tab-cinema" onclick="switchTab('cinema')">🎬 الأفلام</button>
             <button class="tab-btn" id="tab-series" onclick="switchTab('series')">📺 المسلسلات</button>
         </div>
 
+        <!-- Section: Live / Sports -->
         <div id="sports-sec">
             <div class="filter-bar">
                 <select id="sports-cat" onchange="loadMatches()"></select>
-                <input class="search-box" id="sports-search" placeholder="🔍 بحث في القنوات..." oninput="filterMatches()">
+                <input class="search-box" id="sports-search" placeholder="🔍 بحث عن قناة أو مباراة..." oninput="filterMatches()">
             </div>
-            <div id="matches-list" class="loading">جاري جلب البث المباشر...</div>
+            <div id="matches-list" class="loading">جاري تحميل البث المباشر والقنوات...</div>
         </div>
 
+        <!-- Section: Movies -->
         <div id="cinema-sec" style="display: none;">
             <div class="filter-bar">
                 <select id="movies-cat" onchange="loadMovies()"></select>
-                <input class="search-box" id="movies-search" placeholder="🔍 بحث في الأفلام..." oninput="filterMovies()">
+                <input class="search-box" id="movies-search" placeholder="🔍 بحث في مكتبة الأفلام..." oninput="filterMovies()">
             </div>
-            <div class="grid" id="movies-grid" class="loading">جاري جلب مكتبة الأفلام...</div>
+            <div class="grid" id="movies-grid"></div>
         </div>
 
+        <!-- Section: Series -->
         <div id="series-sec" style="display: none;">
             <div class="filter-bar">
                 <select id="series-cat" onchange="loadSeries()"></select>
-                <input class="search-box" id="series-search" placeholder="🔍 بحث في المسلسلات..." oninput="filterSeries()">
+                <input class="search-box" id="series-search" placeholder="🔍 بحث في مكتبة المسلسلات..." oninput="filterSeries()">
             </div>
             <div id="series-view">
-                <div class="grid" id="series-grid" class="loading">جاري جلب المسلسلات...</div>
+                <div class="grid" id="series-grid"></div>
             </div>
         </div>
     </div>
 
+    <!-- Bottom Navigation -->
     <div class="bottom-nav">
-        <div class="nav-item active" id="nav-sports" onclick="switchTab('sports')">⚽ المباريات</div>
-        <div class="nav-item" id="nav-cinema" onclick="switchTab('cinema')">🎬 الأفلام</div>
-        <div class="nav-item" id="nav-series" onclick="switchTab('series')">📺 المسلسلات</div>
+        <div class="nav-item active" id="nav-sports" onclick="switchTab('sports')">
+            <span>⚽</span>
+            <span>المباشر</span>
+        </div>
+        <div class="nav-item" id="nav-cinema" onclick="switchTab('cinema')">
+            <span>🎬</span>
+            <span>الأفلام</span>
+        </div>
+        <div class="nav-item" id="nav-series" onclick="switchTab('series')">
+            <span>📺</span>
+            <span>المسلسلات</span>
+        </div>
     </div>
 
     <script>
@@ -132,9 +577,12 @@
 
         // ===== التشغيل عبر البروكسي =====
         async function playMedia(streamUrl) {
-            playerBox.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100%;color:#00d2ff;font-weight:bold;">جاري تشغيل البث...</div>';
+            playerBox.innerHTML = `
+                <div class="player-placeholder">
+                    <p style="color:var(--primary)">جاري تجهيز وتظبيط البث...</p>
+                </div>`;
+            
             vlcLink.style.display = 'none';
-
             const proxyUrl = `${API_BASE_URL}/proxy?url=${encodeURIComponent(streamUrl)}`;
 
             vlcLink.href = `vlc://${streamUrl}`;
@@ -157,6 +605,9 @@
                 video.src = proxyUrl;
                 video.play();
             }
+
+            // التمرير التلقائي للشاشة نحو المشغل
+            playerBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
 
         // ===== التبويبات =====
@@ -165,8 +616,10 @@
             document.getElementById('sports-sec').style.display = tab === 'sports' ? 'block' : 'none';
             document.getElementById('cinema-sec').style.display = tab === 'cinema' ? 'block' : 'none';
             document.getElementById('series-sec').style.display = tab === 'series' ? 'block' : 'none';
+            
             document.getElementById('tab-' + tab).classList.add('active');
             document.getElementById('nav-' + tab).classList.add('active');
+
             if (tab === 'sports') loadMatches();
             else if (tab === 'cinema') loadMovies();
             else loadSeries();
@@ -178,7 +631,7 @@
                 const res = await fetch(`${API_BASE_URL}/api/categories/${kind}`);
                 const data = await res.json();
                 const sel = document.getElementById(selectId);
-                sel.innerHTML = '<option value="">كل الفئات</option>' + data.data.map(c =>
+                sel.innerHTML = '<option value="">كل الفئات والتصنيفات</option>' + (data.data || []).map(c =>
                     `<option value="${c.category_id}">${c.category_name}</option>`).join('');
             } catch {}
         }
@@ -188,7 +641,7 @@
             const cat = document.getElementById('sports-cat').value;
             const container = document.getElementById('matches-list');
             container.className = 'loading';
-            container.innerHTML = 'جاري جلب البث المباشر...';
+            container.innerHTML = 'جاري تحضير البث المباشر...';
             try {
                 const res = await fetch(`${API_BASE_URL}/api/matches${cat ? '?category_id=' + cat : ''}`);
                 const data = await res.json();
@@ -196,7 +649,7 @@
                 renderMatches();
             } catch {
                 container.className = 'error';
-                container.innerHTML = 'خطأ في جلب المباريات';
+                container.innerHTML = 'حدث خطأ أثناء جلب القنوات، يرجى المحاولة لاحقاً.';
             }
         }
 
@@ -204,16 +657,19 @@
             const container = document.getElementById('matches-list');
             const q = (document.getElementById('sports-search').value || '').toLowerCase();
             const list = allMatches.filter(m => !q || m.home_team.toLowerCase().includes(q));
+            
             if (list.length === 0) {
                 container.className = 'empty';
-                container.innerHTML = 'لا توجد قنوات مطابقة';
+                container.innerHTML = 'لا توجد قنوات مطابقة لنتائج البحث';
                 return;
             }
-            container.className = '';
+            container.className = 'matches-container';
             container.innerHTML = list.map(m => `
                 <div class="match-card" onclick="playMedia('${m.stream_url}')">
-                    <img src="${m.logo || ''}" onerror="this.style.display='none'"/>
-                    <span class="team">${m.home_team}</span>
+                    <div class="info">
+                        <img src="${m.logo || ''}" onerror="this.src='https://via.placeholder.com/42/0d1117/00d2ff?text=TV'"/>
+                        <span class="team">${m.home_team}</span>
+                    </div>
                     <span class="status">${m.status}</span>
                 </div>
             `).join('');
@@ -225,8 +681,8 @@
         async function loadMovies() {
             const cat = document.getElementById('movies-cat').value;
             const grid = document.getElementById('movies-grid');
-            grid.className = 'grid loading';
-            grid.innerHTML = 'جاري جلب مكتبة الأفلام...';
+            grid.className = 'loading';
+            grid.innerHTML = 'جاري تحميل قائمة الأفلام...';
             try {
                 const res = await fetch(`${API_BASE_URL}/api/movies${cat ? '?category_id=' + cat : ''}`);
                 const data = await res.json();
@@ -234,7 +690,7 @@
                 renderMovies();
             } catch {
                 grid.className = 'error';
-                grid.innerHTML = 'خطأ في جلب الأفلام';
+                grid.innerHTML = 'حدث خطأ في تحميل الأفلام.';
             }
         }
 
@@ -242,15 +698,18 @@
             const grid = document.getElementById('movies-grid');
             const q = (document.getElementById('movies-search').value || '').toLowerCase();
             const list = allMovies.filter(m => !q || m.title.toLowerCase().includes(q));
+            
             if (list.length === 0) {
                 grid.className = 'empty';
-                grid.innerHTML = 'لا توجد أفلام مطابقة';
+                grid.innerHTML = 'لا توجد أفلام مطابقة لنتائج البحث';
                 return;
             }
             grid.className = 'grid';
             grid.innerHTML = list.map(m => `
                 <div class="movie-card" onclick="playMedia('${m.stream_url}')">
-                    <img src="${m.poster || ''}" onerror="this.src='https://via.placeholder.com/150x220?text=No+Cover'"/>
+                    <div class="img-wrapper">
+                        <img src="${m.poster || ''}" onerror="this.src='https://via.placeholder.com/150x220/0d1117/00d2ff?text=No+Cover'"/>
+                    </div>
                     <h4>${m.title}</h4>
                 </div>
             `).join('');
@@ -262,8 +721,8 @@
         async function loadSeries() {
             const cat = document.getElementById('series-cat').value;
             const grid = document.getElementById('series-grid');
-            grid.className = 'grid loading';
-            grid.innerHTML = 'جاري جلب المسلسلات...';
+            grid.className = 'loading';
+            grid.innerHTML = 'جاري تحميل قائمة المسلسلات...';
             try {
                 const res = await fetch(`${API_BASE_URL}/api/series${cat ? '?category_id=' + cat : ''}`);
                 const data = await res.json();
@@ -271,7 +730,7 @@
                 renderSeries();
             } catch {
                 grid.className = 'error';
-                grid.innerHTML = 'خطأ في جلب المسلسلات';
+                grid.innerHTML = 'حدث خطأ في تحميل المسلسلات.';
             }
         }
 
@@ -279,15 +738,18 @@
             const grid = document.getElementById('series-grid');
             const q = (document.getElementById('series-search').value || '').toLowerCase();
             const list = allSeries.filter(s => !q || s.title.toLowerCase().includes(q));
+            
             if (list.length === 0) {
                 grid.className = 'empty';
-                grid.innerHTML = 'لا توجد مسلسلات مطابقة';
+                grid.innerHTML = 'لا توجد مسلسلات مطابقة لنتائج البحث';
                 return;
             }
             grid.className = 'grid';
             grid.innerHTML = list.map(s => `
                 <div class="movie-card" onclick="openSeries(${s.id}, '${s.title.replace(/'/g, "\\'")}')">
-                    <img src="${s.poster || ''}" onerror="this.src='https://via.placeholder.com/150x220?text=No+Cover'"/>
+                    <div class="img-wrapper">
+                        <img src="${s.poster || ''}" onerror="this.src='https://via.placeholder.com/150x220/0d1117/00d2ff?text=No+Cover'"/>
+                    </div>
                     <h4>${s.title}</h4>
                 </div>
             `).join('');
@@ -298,33 +760,33 @@
         // ===== حلقات المسلسل =====
         async function openSeries(id, title) {
             const view = document.getElementById('series-view');
-            view.innerHTML = '<div class="loading">جاري جلب الحلقات...</div>';
+            view.innerHTML = '<div class="loading">جاري تحميل الحلقات...</div>';
             try {
                 const res = await fetch(`${API_BASE_URL}/api/series/${id}/episodes`);
                 const data = await res.json();
                 view.innerHTML = `
-                    <button class="back-btn" onclick="backToSeries()">← العودة للمسلسلات</button>
-                    <h3 style="margin-bottom:10px;color:var(--primary);">${title}</h3>
+                    <button class="back-btn" onclick="backToSeries()">← العودة لقائمة المسلسلات</button>
+                    <h3 style="margin-bottom:14px;color:var(--primary);font-size:18px;">${title}</h3>
                     <div class="episode-grid">
                         ${(data.data || []).map(e => `
                             <button class="episode-btn" onclick="playMedia('${e.stream_url}')">
-                                م${e.episode}
-                                <small>موسم ${e.season}</small>
+                                الحلقة ${e.episode}
+                                <small>الموسم ${e.season}</small>
                             </button>
                         `).join('')}
                     </div>`;
             } catch {
-                view.innerHTML = '<div class="error">خطأ في جلب الحلقات</div>';
+                view.innerHTML = '<div class="error">خطأ أثناء جلب حلقات هذا المسلسل</div>';
             }
         }
 
         function backToSeries() {
             document.getElementById('series-view').innerHTML =
-                '<div class="grid" id="series-grid" class="loading">جاري جلب المسلسلات...</div>';
+                '<div class="grid" id="series-grid"></div>';
             loadSeries();
         }
 
-        // ===== التهيئة =====
+        // ===== التهيئة عند التشغيل =====
         loadCategories('live', 'sports-cat');
         loadCategories('movies', 'movies-cat');
         loadCategories('series', 'series-cat');
