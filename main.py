@@ -61,6 +61,6 @@ def get_channels(category_id: str = None):
             "poster": item.get("stream_icon", ""),
             "category_id": item.get("category_id"),
             # جلب البث عبر السيرفر الوسيط أو رابط مباشر
-            "stream_url": f"{XTREAM_URL}/live/{USERNAME}/{PASSWORD}/{stream_id}.m3u8"
+            "stream_url": f"{http://milo2080.com:80}/live/{yqwgsr25au}/{guebgf707f}/{type}.m3u8"
         })
     return channels
