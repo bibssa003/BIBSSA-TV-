@@ -77,7 +77,7 @@
 
     <div class="vlc-bar">
         <a id="vlc-link" href="#" target="_blank" class="vlc-btn" style="display:none;">
-            🍊 فتح المقطع في مشغل VLC الخارجية
+            🍊 فتح المقطع في مشغل VLC الخارجي
         </a>
     </div>
 
@@ -122,6 +122,9 @@
     </div>
 
     <script>
+        // رابط خادم Render المباشر
+        const API_BASE_URL = "https://bibssa-tv.onrender.com";
+
         const playerBox = document.getElementById('player-box');
         const vlcLink = document.getElementById('vlc-link');
         let hls = null;
@@ -132,7 +135,7 @@
             playerBox.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100%;color:#00d2ff;font-weight:bold;">جاري تشغيل البث...</div>';
             vlcLink.style.display = 'none';
 
-            const proxyUrl = window.location.origin + `/proxy?url=${encodeURIComponent(streamUrl)}`;
+            const proxyUrl = `${API_BASE_URL}/proxy?url=${encodeURIComponent(streamUrl)}`;
 
             vlcLink.href = `vlc://${streamUrl}`;
             vlcLink.style.display = 'inline-flex';
@@ -142,13 +145,13 @@
 
             if (hls) hls.destroy();
 
-            if (Hls.isSupported() && streamUrl.includes('.m3u8')) {
+            if (Hls.isSupported() && (streamUrl.includes('.m3u8') || streamUrl.includes('.ts'))) {
                 hls = new Hls();
                 hls.loadSource(proxyUrl);
                 hls.attachMedia(video);
                 hls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
                 hls.on(Hls.Events.ERROR, (e, data) => {
-                    if (data.fatal) { hls.destroy(); video.src = streamUrl; video.play(); }
+                    if (data.fatal) { hls.destroy(); video.src = proxyUrl; video.play(); }
                 });
             } else {
                 video.src = proxyUrl;
@@ -172,7 +175,7 @@
         // ===== الفئات =====
         async function loadCategories(kind, selectId) {
             try {
-                const res = await fetch(`/api/categories/${kind}`);
+                const res = await fetch(`${API_BASE_URL}/api/categories/${kind}`);
                 const data = await res.json();
                 const sel = document.getElementById(selectId);
                 sel.innerHTML = '<option value="">كل الفئات</option>' + data.data.map(c =>
@@ -187,9 +190,9 @@
             container.className = 'loading';
             container.innerHTML = 'جاري جلب البث المباشر...';
             try {
-                const res = await fetch(`/api/matches${cat ? '?category_id=' + cat : ''}`);
+                const res = await fetch(`${API_BASE_URL}/api/matches${cat ? '?category_id=' + cat : ''}`);
                 const data = await res.json();
-                allMatches = data.data;
+                allMatches = data.data || [];
                 renderMatches();
             } catch {
                 container.className = 'error';
@@ -225,9 +228,9 @@
             grid.className = 'grid loading';
             grid.innerHTML = 'جاري جلب مكتبة الأفلام...';
             try {
-                const res = await fetch(`/api/movies${cat ? '?category_id=' + cat : ''}`);
+                const res = await fetch(`${API_BASE_URL}/api/movies${cat ? '?category_id=' + cat : ''}`);
                 const data = await res.json();
-                allMovies = data.data;
+                allMovies = data.data || [];
                 renderMovies();
             } catch {
                 grid.className = 'error';
@@ -262,9 +265,9 @@
             grid.className = 'grid loading';
             grid.innerHTML = 'جاري جلب المسلسلات...';
             try {
-                const res = await fetch(`/api/series${cat ? '?category_id=' + cat : ''}`);
+                const res = await fetch(`${API_BASE_URL}/api/series${cat ? '?category_id=' + cat : ''}`);
                 const data = await res.json();
-                allSeries = data.data;
+                allSeries = data.data || [];
                 renderSeries();
             } catch {
                 grid.className = 'error';
@@ -297,13 +300,13 @@
             const view = document.getElementById('series-view');
             view.innerHTML = '<div class="loading">جاري جلب الحلقات...</div>';
             try {
-                const res = await fetch(`/api/series/${id}/episodes`);
+                const res = await fetch(`${API_BASE_URL}/api/series/${id}/episodes`);
                 const data = await res.json();
                 view.innerHTML = `
                     <button class="back-btn" onclick="backToSeries()">← العودة للمسلسلات</button>
                     <h3 style="margin-bottom:10px;color:var(--primary);">${title}</h3>
                     <div class="episode-grid">
-                        ${data.data.map(e => `
+                        ${(data.data || []).map(e => `
                             <button class="episode-btn" onclick="playMedia('${e.stream_url}')">
                                 م${e.episode}
                                 <small>موسم ${e.season}</small>
