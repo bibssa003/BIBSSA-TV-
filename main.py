@@ -42,8 +42,12 @@ def xtream_get(action, params=None):
 @app.get("/api/matches")
 def get_matches(category_id: int = Query(None)):
     try:
-        streams = xtream_get("get_live_streams",
-                             {"category_id": category_id} if category_id else None)
+        params = {"category_id": category_id} if category_id is not None else None
+        streams = xtream_get("get_live_streams", params)
+        
+        if not isinstance(streams, list):
+            return {"success": True, "data": []}
+
         matches = []
         for s in streams:
             matches.append({
@@ -51,7 +55,8 @@ def get_matches(category_id: int = Query(None)):
                 "home_team": (s.get("name") or "")[:40],
                 "away_team": "",
                 "status": "مباشر 🔴",
-                "stream_url": f"{XTREAM_SERVER}/live/{XTREAM_USERNAME}/{XTREAM_PASSWORD}/{s.get('stream_id')}.m3u8",
+                # تم تغيير الامتداد الافتراضي إلى ts لضمان التشغيل على معظم السيرفرات
+                "stream_url": f"{XTREAM_SERVER}/live/{XTREAM_USERNAME}/{XTREAM_PASSWORD}/{s.get('stream_id')}.ts",
                 "logo": s.get("stream_icon"),
                 "category_id": s.get("category_id"),
                 "epg": s.get("epg_channel_id")
@@ -65,15 +70,21 @@ def get_matches(category_id: int = Query(None)):
 @app.get("/api/movies")
 def get_movies(category_id: int = Query(None)):
     try:
-        movies = xtream_get("get_vod_streams",
-                            {"category_id": category_id} if category_id else None)
+        params = {"category_id": category_id} if category_id is not None else None
+        movies = xtream_get("get_vod_streams", params)
+        
+        if not isinstance(movies, list):
+            return {"success": True, "data": []}
+
         data = []
         for m in movies:
+            # استخراج امتداد الفليم الاصلي مثل mp4 أو mkv
+            ext = m.get("container_extension", "mp4")
             data.append({
                 "id": m.get("stream_id"),
                 "title": (m.get("name") or "")[:60],
                 "poster": m.get("stream_icon"),
-                "stream_url": f"{XTREAM_SERVER}/movie/{XTREAM_USERNAME}/{XTREAM_PASSWORD}/{m.get('stream_id')}.m3u8",
+                "stream_url": f"{XTREAM_SERVER}/movie/{XTREAM_USERNAME}/{XTREAM_PASSWORD}/{m.get('stream_id')}.{ext}",
                 "category_id": m.get("category_id"),
                 "rating": m.get("rating"),
                 "year": m.get("year"),
@@ -88,8 +99,12 @@ def get_movies(category_id: int = Query(None)):
 @app.get("/api/series")
 def get_series(category_id: int = Query(None)):
     try:
-        series = xtream_get("get_series",
-                            {"category_id": category_id} if category_id else None)
+        params = {"category_id": category_id} if category_id is not None else None
+        series = xtream_get("get_series", params)
+        
+        if not isinstance(series, list):
+            return {"success": True, "data": []}
+
         data = []
         for s in series:
             data.append({
@@ -111,15 +126,21 @@ def get_series(category_id: int = Query(None)):
 def get_series_episodes(series_id: int):
     try:
         info = xtream_get("get_series_info", {"series_id": series_id})
+        episodes_data = info.get("episodes", {})
         episodes = []
-        for season in info.get("episodes", []):
-            for ep in season:
-                episodes.append({
-                    "season": ep.get("season"),
-                    "episode": ep.get("episode"),
-                    "title": ep.get("title"),
-                    "stream_url": f"{XTREAM_SERVER}/series/{XTREAM_USERNAME}/{XTREAM_PASSWORD}/{series_id}/{ep.get('id')}.m3u8"
-                })
+
+        # حلقات Xtream تعود على شكل Dictionary مفاتيحه أرقام المواسم
+        if isinstance(episodes_data, dict):
+            for season_num, ep_list in episodes_data.items():
+                for ep in ep_list:
+                    ext = ep.get("container_extension", "mp4")
+                    episodes.append({
+                        "season": ep.get("season"),
+                        "episode": ep.get("episode"),
+                        "title": ep.get("title"),
+                        "stream_url": f"{XTREAM_SERVER}/series/{XTREAM_USERNAME}/{XTREAM_PASSWORD}/{ep.get('id')}.{ext}"
+                    })
+
         return {"success": True, "data": episodes}
     except Exception as e:
         return {"success": False, "error": str(e)}
@@ -142,13 +163,13 @@ def get_categories(kind: str):
         return {"success": False, "error": str(e)}
 
 
-# ================= المشغل: يعيد رابط البث مباشرة =================
+# ================= المشغل =================
 @app.get("/api/get-player")
 def get_player(url: str = Query(...)):
     return {"type": "direct", "url": url}
 
 
-# ================= بروكسي لفك الحجب عند التشغيل =================
+# ================= بروكسي =================
 @app.get("/proxy")
 def proxy_stream(url: str = Query(...)):
     def stream_content():
