@@ -1,145 +1,106 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BIBSSA TV | البث المباشر والترفيه</title>
-    <link rel="manifest" href="./manifest.json">
-    <!-- مكتبة HLS.js لتشغيل البث المباشر وصيغ m3u8 بكفاءة عالية -->
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-    <style>
-        body { font-family: sans-serif; background: #0f172a; color: #fff; margin: 0; padding: 20px; }
-        .top-nav { text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 20px; }
-        .container { max-width: 900px; margin: 0 auto; }
-        .tab-btn { background: #1e293b; color: #fff; border: 1px solid #334155; padding: 10px 20px; cursor: pointer; border-radius: 5px; margin: 5px; }
-        .tab-btn.active { background: #2563eb; }
-        .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; margin-top: 20px; }
-        .card { background: #1e293b; padding: 10px; border-radius: 8px; text-align: center; cursor: pointer; border: 1px solid #334155; }
-        .card img { width: 100%; height: 150px; object-fit: cover; border-radius: 5px; }
-    </style>
-</head>
-<body>
+import requests
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-    <header class="top-nav">
-        <div class="logo">📺 BIBSSA TV</div>
-    </header>
+app = FastAPI(title="BIBSSA TV API")
 
-    <main class="container">
-        <!-- مشغل الفيديو -->
-        <div class="player-container">
-            <video id="mainPlayer" controls autoplay style="width:100%; max-height:450px; background:#000; border-radius:8px;"></video>
-            <div id="vlcBtnContainer" style="margin-top: 10px; display:none; text-align:center;">
-                <a id="vlcLink" href="#" class="vlc-btn" style="background:#f39c12; color:#fff; padding:10px 20px; text-decoration:none; border-radius:5px; display:inline-block;">
-                    🍊 فتح البث في مشغل VLC الخارجي
-                </a>
-            </div>
-        </div>
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-        <!-- أزرار الأقسام -->
-        <div class="tabs" style="text-align:center; margin-top: 20px;">
-            <button onclick="switchTab('live')" id="tab-live" class="tab-btn active">⚽ المباشر</button>
-            <button onclick="switchTab('movies')" id="tab-movies" class="tab-btn">🎬 الأفلام</button>
-            <button onclick="switchTab('series')" id="tab-series" class="tab-btn">📺 المسلسلات</button>
-        </div>
+# بيانات سيرفر Xtream الخاصة بك (ضع بياناتك الصحيحة هنا)
+XTREAM_URL = "http://YOUR_SERVER_DOMAIN:PORT"
+USERNAME = "YOUR_USERNAME"
+PASSWORD = "YOUR_PASSWORD"
 
-        <!-- أداة البحث -->
-        <div class="controls" style="margin-top:15px;">
-            <input type="text" id="searchInput" oninput="filterContent()" placeholder="بحث عن قناة أو فيلم..." style="width:100%; padding:10px; border-radius:5px; border:none;">
-        </div>
+def fetch_xtream_data(action: str):
+    url = f"{XTREAM_URL}/player_api.php?username={USERNAME}&password={PASSWORD}&action={action}"
+    try:
+        response = requests.get(url, timeout=5)
+        if response.status_code == 200:
+            return response.json()
+    except Exception as e:
+        print(f"Error fetching from Xtream: {e}")
+    return None
 
-        <!-- الشبكة لعرض القنوات والوسائط -->
-        <div id="contentGrid" class="grid-container"></div>
-    </main>
+@app.get("/")
+def home():
+    return {"status": "online", "message": "BIBSSA TV API is working smoothly!"}
 
-    <script>
-        const API_BASE_URL = "https://bibssa-tv.onrender.com";
-        let currentData = [];
-        let hlsPlayer = null;
-
-        document.addEventListener("DOMContentLoaded", () => {
-            loadContent("live");
-        });
-
-        async function switchTab(tab) {
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            document.getElementById(`tab-${tab}`).classList.add('active');
-            await loadContent(tab);
+@app.get("/api/matches")
+def get_live_streams():
+    data = fetch_xtream_data("get_live_streams")
+    if data and isinstance(data, list):
+        channels = []
+        for item in data:
+            channels.append({
+                "id": item.get("stream_id"),
+                "title": item.get("name"),
+                "stream_url": f"{XTREAM_URL}/live/{USERNAME}/{PASSWORD}/{item.get('stream_id')}.m3u8"
+            })
+        return channels
+    
+    # قنوات تجريبية تعمل مباشرة للتأكد من المظهر والتطبيقات
+    return [
+        {
+            "id": 1,
+            "title": "قناة تجريبية 1 (Test Stream)",
+            "stream_url": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"
+        },
+        {
+            "id": 2,
+            "title": "قناة تجريبية 2 (Big Buck Bunny)",
+            "stream_url": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
         }
+    ]
 
-        async function loadContent(type) {
-            const grid = document.getElementById("contentGrid");
-            grid.innerHTML = "<p style='text-align:center; grid-column: 1/-1;'>جاري تحميل البيانات من السيرفر...</p>";
-            
-            let endpoint = "/api/matches";
-            if (type === "movies") endpoint = "/api/movies";
-            if (type === "series") endpoint = "/api/series";
+@app.get("/api/movies")
+def get_movies():
+    data = fetch_xtream_data("get_vod_streams")
+    if data and isinstance(data, list):
+        movies = []
+        for item in data:
+            ext = item.get("container_extension", "mp4")
+            movies.append({
+                "id": item.get("stream_id"),
+                "title": item.get("name"),
+                "poster": item.get("stream_icon", ""),
+                "stream_url": f"{XTREAM_URL}/movie/{USERNAME}/{PASSWORD}/{item.get('stream_id')}.{ext}"
+            })
+        return movies
 
-            try {
-                const response = await fetch(`${API_BASE_URL}${endpoint}`);
-                if (!response.ok) throw new Error("Network error");
-                
-                currentData = await response.json();
-                renderItems(currentData);
-            } catch (error) {
-                console.error("Error fetching data:", error);
-                grid.innerHTML = "<p style='color:red; text-align:center; grid-column: 1/-1;'>حدث خطأ أثناء الاتصال بالسيرفر. يرجى المحاولة لاحقاً.</p>";
-            }
+    return [
+        {
+            "id": 101,
+            "title": "فيلم تجريبي (Tears of Steel)",
+            "poster": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/Tears_of_Steel_poster.jpg/800px-Tears_of_Steel_poster.jpg",
+            "stream_url": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4"
         }
+    ]
 
-        function renderItems(items) {
-            const grid = document.getElementById("contentGrid");
-            grid.innerHTML = "";
+@app.get("/api/series")
+def get_series():
+    data = fetch_xtream_data("get_series")
+    if data and isinstance(data, list):
+        series_list = []
+        for item in data:
+            series_list.append({
+                "id": item.get("series_id"),
+                "title": item.get("name"),
+                "poster": item.get("cover", ""),
+                "stream_url": f"{XTREAM_URL}/series/{USERNAME}/{PASSWORD}/{item.get('series_id')}.m3u8"
+            })
+        return series_list
 
-            if (!items || items.length === 0) {
-                grid.innerHTML = "<p style='text-align:center; grid-column: 1/-1;'>لا توجد بيانات متوفرة حالياً</p>";
-                return;
-            }
-
-            items.forEach(item => {
-                const card = document.createElement("div");
-                card.className = "card";
-                
-                let imageHtml = item.poster ? `<img src="${item.poster}" onerror="this.style.display='none'">` : '';
-                card.innerHTML = `${imageHtml}<h4>${item.title}</h4>`;
-                
-                card.onclick = () => playStream(item.stream_url);
-                grid.appendChild(card);
-            });
+    return [
+        {
+            "id": 201,
+            "title": "مسلسل تجريبي (Sintel)",
+            "poster": "https://upload.wikimedia.org/wikipedia/commons/8/8f/Sintel_poster.jpg",
+            "stream_url": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4"
         }
-
-        function playStream(url) {
-            if (!url) return;
-            const video = document.getElementById("mainPlayer");
-
-            // دعم مشغل HLS.js للبث المباشر والقنوات
-            if (Hls.isSupported() && url.endsWith('.m3u8')) {
-                if (hlsPlayer) { hlsPlayer.destroy(); }
-                hlsPlayer = new Hls();
-                hlsPlayer.loadSource(url);
-                hlsPlayer.attachMedia(video);
-                hlsPlayer.on(Hls.Events.MANIFEST_PARSED, function () {
-                    video.play();
-                });
-            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                video.src = url;
-                video.play();
-            } else {
-                video.src = url;
-                video.play();
-            }
-
-            // إظهار رابط VLC الخارجي
-            const vlcContainer = document.getElementById("vlcBtnContainer");
-            const vlcLink = document.getElementById("vlcLink");
-            vlcLink.href = `vlc://${url}`;
-            vlcContainer.style.display = "block";
-        }
-
-        function filterContent() {
-            const query = document.getElementById("searchInput").value.toLowerCase();
-            const filtered = currentData.filter(item => item.title.toLowerCase().includes(query));
-            renderItems(filtered);
-        }
-    </script>
-</body>
-</html>
+    ]
