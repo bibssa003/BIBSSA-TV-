@@ -12,7 +12,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ⚠️ استبدل هذه البيانات ببيانات سيرفر Xtream الخاص بك
+# ⚠️ بيانات سيرفر Xtream
 XTREAM_URL = "http://milo2080.com:80"
 USERNAME = "yqwgsr25au"
 PASSWORD = "guebgf707f"
@@ -31,62 +31,30 @@ def fetch_xtream(action: str, category_id: str = None):
 
 @app.get("/")
 def home():
-    return {"status": "online", "message": "BIBSSA TV API is working smoothly!"}
+    return {"status": "online", "message": "BIBSSA TV API is working"}
 
-# 1. جلب التصنيفات (Categories) حسب النوع (live / movies / series)
-@app.get("/api/categories/{content_type}")
-def get_categories(content_type: str):
-    action_map = {
-        "live": "get_live_categories",
-        "movies": "get_vod_categories",
-        "series": "get_series_categories"
-    }
-    action = action_map.get(content_type, "get_live_categories")
-    categories = fetch_xtream(action)
+# 1. جلب تصنيفات القنوات المباشرة فقط
+@app.get("/api/categories")
+def get_categories():
+    categories = fetch_xtream("get_live_categories")
     return categories if isinstance(categories, list) else []
 
-# 2. جلب المحتوى (قنوات / أفلام / مسلسلات) مع إمكانية التصفية بحسب التصنيف category_id
-@app.get("/api/content/{content_type}")
-def get_content(content_type: str, category_id: str = None):
-    action_map = {
-        "live": "get_live_streams",
-        "movies": "get_vod_streams",
-        "series": "get_series"
-    }
-    action = action_map.get(content_type, "get_live_streams")
-    data = fetch_xtream(action, category_id)
+# 2. جلب القنوات المباشرة فقط (مع إمكانية الفلترة حسب التصنيف)
+@app.get("/api/channels")
+def get_channels(category_id: str = None):
+    data = fetch_xtream("get_live_streams", category_id)
     
     if not isinstance(data, list):
         return []
 
-    items = []
+    channels = []
     for item in data:
-        if content_type == "live":
-            stream_id = item.get("stream_id")
-            items.append({
-                "id": stream_id,
-                "title": item.get("name"),
-                "poster": item.get("stream_icon", ""),
-                "category_id": item.get("category_id"),
-                "stream_url": f"{XTREAM_URL}/live/{USERNAME}/{PASSWORD}/{stream_id}.m3u8"
-            })
-        elif content_type == "movies":
-            stream_id = item.get("stream_id")
-            ext = item.get("container_extension", "mp4")
-            items.append({
-                "id": stream_id,
-                "title": item.get("name"),
-                "poster": item.get("stream_icon", ""),
-                "category_id": item.get("category_id"),
-                "stream_url": f"{XTREAM_URL}/movie/{USERNAME}/{PASSWORD}/{stream_id}.{ext}"
-            })
-        elif content_type == "series":
-            series_id = item.get("series_id")
-            items.append({
-                "id": series_id,
-                "title": item.get("name"),
-                "poster": item.get("cover", ""),
-                "category_id": item.get("category_id"),
-                "stream_url": f"{XTREAM_URL}/series/{USERNAME}/{PASSWORD}/{series_id}.m3u8"
-            })
-    return items
+        stream_id = item.get("stream_id")
+        channels.append({
+            "id": stream_id,
+            "title": item.get("name"),
+            "poster": item.get("stream_icon", ""),
+            "category_id": item.get("category_id"),
+            "stream_url": f"{XTREAM_URL}/live/{USERNAME}/{PASSWORD}/{stream_id}.m3u8"
+        })
+    return channels
