@@ -1,5 +1,5 @@
 const CACHE_NAME = 'bibssa-tv-v1';
-const urlsToCache = ['/', '/manifest.json'];
+const urlsToCache = ['./index.html', './manifest.json'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
