@@ -4,7 +4,6 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="BIBSSA TV API")
 
-# تفعيل CORS لجميع المصادر لمنع الحظر في المتصفح وGitHub Pages
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -13,101 +12,81 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ضع بيانات سيرفر Xtream الخاص بك هنا عند التوفر
+# ⚠️ استبدل هذه البيانات ببيانات سيرفر Xtream الخاص بك
 XTREAM_URL = "http://milo2080.com:80"
 USERNAME = "yqwgsr25au"
 PASSWORD = "guebgf707f"
 
-def fetch_xtream_data(action: str):
+def fetch_xtream(action: str, category_id: str = None):
     url = f"{XTREAM_URL}/player_api.php?username={USERNAME}&password={PASSWORD}&action={action}"
+    if category_id:
+        url += f"&category_id={category_id}"
     try:
-        response = requests.get(url, timeout=5)
+        response = requests.get(url, timeout=10)
         if response.status_code == 200:
             return response.json()
     except Exception as e:
-        print(f"Xtream fetch error: {e}")
-    return None
+        print(f"Error fetching from Xtream ({action}): {e}")
+    return []
 
 @app.get("/")
 def home():
     return {"status": "online", "message": "BIBSSA TV API is working smoothly!"}
 
-# مسار جلب البث المباشر
-@app.get("/api/matches")
-def get_live_streams():
-    data = fetch_xtream_data("get_live_streams")
-    if data and isinstance(data, list):
-        channels = []
-        for item in data:
-            channels.append({
-                "id": item.get("stream_id"),
-                "title": item.get("name"),
-                "category": item.get("category_id"),
-                "stream_url": f"{XTREAM_URL}/live/{USERNAME}/{PASSWORD}/{item.get('stream_id')}.m3u8"
-            })
-        return channels
-    
-    # قائمة قنوات تجريبية تعمل فوراً لتأكيد تشغيل التطبيق
-    return [
-        {
-            "id": 1,
-            "title": "قناة تجريبية 1 (Test Stream HLS)",
-            "category": "مباشر",
-            "stream_url": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"
-        },
-        {
-            "id": 2,
-            "title": "قناة تجريبية 2 (Big Buck Bunny)",
-            "category": "مباشر",
-            "stream_url": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
-        }
-    ]
+# 1. جلب التصنيفات (Categories) حسب النوع (live / movies / series)
+@app.get("/api/categories/{content_type}")
+def get_categories(content_type: str):
+    action_map = {
+        "live": "get_live_categories",
+        "movies": "get_vod_categories",
+        "series": "get_series_categories"
+    }
+    action = action_map.get(content_type, "get_live_categories")
+    categories = fetch_xtream(action)
+    return categories if isinstance(categories, list) else []
 
-# مسار جلب الأفلام
-@app.get("/api/movies")
-def get_movies():
-    data = fetch_xtream_data("get_vod_streams")
-    if data and isinstance(data, list):
-        movies = []
-        for item in data:
-            ext = item.get("container_extension", "mp4")
-            movies.append({
-                "id": item.get("stream_id"),
+# 2. جلب المحتوى (قنوات / أفلام / مسلسلات) مع إمكانية التصفية بحسب التصنيف category_id
+@app.get("/api/content/{content_type}")
+def get_content(content_type: str, category_id: str = None):
+    action_map = {
+        "live": "get_live_streams",
+        "movies": "get_vod_streams",
+        "series": "get_series"
+    }
+    action = action_map.get(content_type, "get_live_streams")
+    data = fetch_xtream(action, category_id)
+    
+    if not isinstance(data, list):
+        return []
+
+    items = []
+    for item in data:
+        if content_type == "live":
+            stream_id = item.get("stream_id")
+            items.append({
+                "id": stream_id,
                 "title": item.get("name"),
                 "poster": item.get("stream_icon", ""),
-                "stream_url": f"{XTREAM_URL}/movie/{USERNAME}/{PASSWORD}/{item.get('stream_id')}.{ext}"
+                "category_id": item.get("category_id"),
+                "stream_url": f"{XTREAM_URL}/live/{USERNAME}/{PASSWORD}/{stream_id}.m3u8"
             })
-        return movies
-
-    return [
-        {
-            "id": 101,
-            "title": "فيلم تجريبي (Tears of Steel)",
-            "poster": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/Tears_of_Steel_poster.jpg/800px-Tears_of_Steel_poster.jpg",
-            "stream_url": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4"
-        }
-    ]
-
-# مسار جلب المسلسلات
-@app.get("/api/series")
-def get_series():
-    data = fetch_xtream_data("get_series")
-    if data and isinstance(data, list):
-        series_list = []
-        for item in data:
-            series_list.append({
-                "id": item.get("series_id"),
+        elif content_type == "movies":
+            stream_id = item.get("stream_id")
+            ext = item.get("container_extension", "mp4")
+            items.append({
+                "id": stream_id,
+                "title": item.get("name"),
+                "poster": item.get("stream_icon", ""),
+                "category_id": item.get("category_id"),
+                "stream_url": f"{XTREAM_URL}/movie/{USERNAME}/{PASSWORD}/{stream_id}.{ext}"
+            })
+        elif content_type == "series":
+            series_id = item.get("series_id")
+            items.append({
+                "id": series_id,
                 "title": item.get("name"),
                 "poster": item.get("cover", ""),
-                "stream_url": f"{XTREAM_URL}/series/{USERNAME}/{PASSWORD}/{item.get('series_id')}.m3u8"
+                "category_id": item.get("category_id"),
+                "stream_url": f"{XTREAM_URL}/series/{USERNAME}/{PASSWORD}/{series_id}.m3u8"
             })
-        return series_list
-
-    return [
-        {
-            "id": 201,
-            "title": "مسلسل تجريبي (Sintel)",
-            "poster": "https://upload.wikimedia.org/wikipedia/commons/8/8f/Sintel_poster.jpg",
-            "stream_url": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4"
-        }
-    ]
+    return items
