@@ -1,11 +1,13 @@
 from fastapi import FastAPI, Query, HTTPException
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 import requests
 import urllib.parse
+import re
 
-app = FastAPI()
+app = FastAPI(title="BIBSSA TV API")
 
+# تفعيل CORS لمنع أي حظر من المتصفح
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -14,7 +16,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ================= إعدادات حساب Xtream IPTV =================
+# ================= بيانات حساب Xtream IPTV =================
 XTREAM_SERVER = "http://milo2080.com:80"
 XTREAM_USERNAME = "yqwgsr25au"
 XTREAM_PASSWORD = "guebgf707f"
@@ -27,18 +29,21 @@ HEADERS = {
     "Accept-Language": "ar,en-US;q=0.7,en;q=0.3"
 }
 
-
 def xtream_get(action, params=None):
-    """استدعاء عام لواجهة Xtream Codes API."""
+    """استدعاء API الخاص بسيرفر Xtream Codes"""
     url = f"{API_BASE}&action={action}"
     if params:
         url += "&" + urllib.parse.urlencode(params)
-    res = requests.get(url, headers=HEADERS, timeout=10)
+    res = requests.get(url, headers=HEADERS, timeout=12)
     res.raise_for_status()
     return res.json()
 
+# المسار الرئيسي لتأكيد عمل السيرفر
+@app.get("/")
+def home():
+    return {"status": "online", "message": "BIBSSA TV API is working smoothly!"}
 
-# ================= المباريات / القنوات المباشرة =================
+# ================= 1. القنوات المباشرة / المباريات =================
 @app.get("/api/matches")
 def get_matches(category_id: int = Query(None)):
     try:
@@ -52,10 +57,9 @@ def get_matches(category_id: int = Query(None)):
         for s in streams:
             matches.append({
                 "id": s.get("stream_id"),
-                "home_team": (s.get("name") or "")[:40],
+                "home_team": (s.get("name") or "")[:60],
                 "away_team": "",
                 "status": "مباشر 🔴",
-                # تم تغيير الامتداد الافتراضي إلى ts لضمان التشغيل على معظم السيرفرات
                 "stream_url": f"{XTREAM_SERVER}/live/{XTREAM_USERNAME}/{XTREAM_PASSWORD}/{s.get('stream_id')}.ts",
                 "logo": s.get("stream_icon"),
                 "category_id": s.get("category_id"),
@@ -65,8 +69,7 @@ def get_matches(category_id: int = Query(None)):
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-
-# ================= الأفلام (VOD) =================
+# ================= 2. الأفلام (VOD) =================
 @app.get("/api/movies")
 def get_movies(category_id: int = Query(None)):
     try:
@@ -78,7 +81,6 @@ def get_movies(category_id: int = Query(None)):
 
         data = []
         for m in movies:
-            # استخراج امتداد الفليم الاصلي مثل mp4 أو mkv
             ext = m.get("container_extension", "mp4")
             data.append({
                 "id": m.get("stream_id"),
@@ -94,8 +96,7 @@ def get_movies(category_id: int = Query(None)):
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-
-# ================= المسلسلات =================
+# ================= 3. المسلسلات =================
 @app.get("/api/series")
 def get_series(category_id: int = Query(None)):
     try:
@@ -120,8 +121,7 @@ def get_series(category_id: int = Query(None)):
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-
-# ================= حلقات مسلسل =================
+# ================= 4. حلقات مسلسل =================
 @app.get("/api/series/{series_id}/episodes")
 def get_series_episodes(series_id: int):
     try:
@@ -129,7 +129,6 @@ def get_series_episodes(series_id: int):
         episodes_data = info.get("episodes", {})
         episodes = []
 
-        # حلقات Xtream تعود على شكل Dictionary مفاتيحه أرقام المواسم
         if isinstance(episodes_data, dict):
             for season_num, ep_list in episodes_data.items():
                 for ep in ep_list:
@@ -145,8 +144,7 @@ def get_series_episodes(series_id: int):
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-
-# ================= الفئات =================
+# ================= 5. الفئات =================
 @app.get("/api/categories/{kind}")
 def get_categories(kind: str):
     action_map = {
@@ -162,14 +160,7 @@ def get_categories(kind: str):
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-
-# ================= المشغل =================
-@app.get("/api/get-player")
-def get_player(url: str = Query(...)):
-    return {"type": "direct", "url": url}
-
-
-# ================= بروكسي =================
+# ================= 6. البروكسي لتمرير الفيديو =================
 @app.get("/proxy")
 def proxy_stream(url: str = Query(...)):
     def stream_content():
@@ -177,7 +168,7 @@ def proxy_stream(url: str = Query(...)):
             req_headers = HEADERS.copy()
             req_headers["Referer"] = XTREAM_SERVER
             with requests.get(url, headers=req_headers, stream=True, timeout=15) as req:
-                for chunk in req.iter_content(chunk_size=8192):
+                for chunk in req.iter_content(chunk_size=64 * 1024):
                     if chunk:
                         yield chunk
         except Exception:
