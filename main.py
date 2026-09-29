@@ -1,9 +1,8 @@
 import requests
 import urllib3
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 
-# تعطيل تحذيرات SSL
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 app = FastAPI(title="BIBSSA TV API")
@@ -16,61 +15,77 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# بيانات سيرفر Xtream الخاصة بك
 XTREAM_URL = "http://milo2080.com:80"
 USERNAME = "yqwgsr25au"
 PASSWORD = "guebgf707f"
 
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-    "Accept": "*/*",
-    "Connection": "keep-alive"
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 }
 
 def fetch_xtream(action: str, category_id: str = None):
     url = f"{XTREAM_URL}/player_api.php?username={USERNAME}&password={PASSWORD}&action={action}"
     if category_id:
         url += f"&category_id={category_id}"
-    
     try:
-        response = requests.get(url, headers=HEADERS, timeout=20, verify=False)
-        if response.status_code == 200:
-            return response.json()
-        else:
-            print(f"Xtream Error Status Code: {response.status_code}")
+        res = requests.get(url, headers=HEADERS, timeout=15, verify=False)
+        if res.status_code == 200:
+            return res.json()
     except Exception as e:
-        print(f"Exception fetching from Xtream ({action}): {e}")
+        print(f"Error fetching {action}: {e}")
     return []
 
 @app.get("/")
 def home():
-    return {"status": "online", "message": "BIBSSA TV API is working"}
+    return {"status": "online"}
 
-# 1. جلب التصنيفات
+# --- القنوات المباشرة ---
 @app.get("/api/categories")
 def get_categories():
-    categories = fetch_xtream("get_live_categories")
-    return categories if isinstance(categories, list) else []
+    data = fetch_xtream("get_live_categories")
+    return data if isinstance(data, list) else []
 
-# 2. جلب القنوات
 @app.get("/api/channels")
 def get_channels(category_id: str = None):
     data = fetch_xtream("get_live_streams", category_id)
-    
     if not isinstance(data, list):
         return []
-
-    channels = []
+    
+    result = []
     for item in data:
-        stream_id = item.get("stream_id")
-        if not stream_id:
-            continue
-            
-        channels.append({
-            "id": stream_id,
-            "title": item.get("name", "قناة بدون عنوان"),
-            "poster": item.get("stream_icon", ""),
-            "category_id": item.get("category_id"),
-            "stream_url": f"{XTREAM_URL}/live/{USERNAME}/{PASSWORD}/{stream_id}.m3u8"
-        })
-    return channels
+        s_id = item.get("stream_id")
+        if s_id:
+            result.append({
+                "id": s_id,
+                "title": item.get("name", "قناة"),
+                "poster": item.get("stream_icon", ""),
+                "type": "live",
+                "stream_url": f"{XTREAM_URL}/live/{USERNAME}/{PASSWORD}/{s_id}.m3u8"
+            })
+    return result
+
+# --- الأفلام (VOD) ---
+@app.get("/api/movie-categories")
+def get_movie_categories():
+    data = fetch_xtream("get_vod_categories")
+    return data if isinstance(data, list) else []
+
+@app.get("/api/movies")
+def get_movies(category_id: str = None):
+    data = fetch_xtream("get_vod_streams", category_id)
+    if not isinstance(data, list):
+        return []
+    
+    result = []
+    for item in data:
+        s_id = item.get("stream_id")
+        ext = item.get("container_extension", "mp4")
+        if s_id:
+            result.append({
+                "id": s_id,
+                "title": item.get("name", "فيلم"),
+                "poster": item.get("stream_icon", ""),
+                "type": "movie",
+                "stream_url": f"{XTREAM_URL}/movie/{USERNAME}/{PASSWORD}/{s_id}.{ext}"
+            })
+    return result
