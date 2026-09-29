@@ -6,12 +6,12 @@
     <title>BIBSSA TV</title>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, sans-serif; }
         body { background-color: #0f172a; color: #fff; padding: 15px; text-align: center; }
         h1 { color: #38bdf8; margin-bottom: 15px; }
         
         .player-container { width: 100%; max-width: 800px; margin: 0 auto 20px; background: #000; border-radius: 12px; overflow: hidden; }
-        video { width: 100%; height: 280px; display: block; }
+        video { width: 100%; height: 320px; display: block; }
         
         .nav-buttons { display: flex; justify-content: center; gap: 10px; margin-bottom: 15px; }
         .nav-btn { padding: 10px 20px; background: #334155; border: none; color: white; border-radius: 8px; cursor: pointer; font-weight: bold; }
@@ -21,11 +21,11 @@
         select { width: 100%; padding: 12px; border-radius: 8px; background: #1e293b; color: #fff; border: 1px solid #334155; }
         
         .content-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; max-width: 800px; margin: 0 auto; }
-        .card { background: #1e293b; border-radius: 10px; padding: 8px; cursor: pointer; text-align: center; }
-        .card:hover { background: #334155; }
+        .card { background: #1e293b; border-radius: 10px; padding: 8px; cursor: pointer; text-align: center; transition: 0.2s; }
+        .card:hover { background: #334155; transform: translateY(-2px); }
         .card img { width: 100%; height: 110px; object-fit: cover; border-radius: 6px; }
-        .card h4 { font-size: 12px; margin-top: 8px; color: #e2e8f0; line-height: 1.2; }
-        .message { grid-column: 1/-1; color: #94a3b8; padding: 20px; }
+        .card h4 { font-size: 12px; margin-top: 8px; color: #e2e8f0; line-height: 1.2; word-break: break-word; }
+        .message { grid-column: 1/-1; color: #94a3b8; padding: 20px; font-size: 14px; }
     </style>
 </head>
 <body>
@@ -96,7 +96,7 @@
 
         async function loadItems(catId = '') {
             const grid = document.getElementById('grid');
-            grid.innerHTML = '<div class="message">جاري جلب المحتوى...</div>';
+            grid.innerHTML = '<div class="message">جاري جلب القنوات والأفلام...</div>';
             const endpoint = currentMode === 'live' ? '/api/channels' : '/api/movies';
             let url = `${API_BASE_URL}${endpoint}`;
             if (catId) url += `?category_id=${catId}`;
@@ -124,7 +124,7 @@
                     grid.appendChild(card);
                 });
             } catch (err) {
-                grid.innerHTML = '<div class="message" style="color:#f87171;">حدث خطأ أثناء الإتصال بالسيرفر!</div>';
+                grid.innerHTML = '<div class="message" style="color:#f87171;">تعذر جلب البيانات من السيرفر!</div>';
             }
         }
 
