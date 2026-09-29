@@ -12,17 +12,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ⚠️ بيانات سيرفر 
-XtreamXTREAM_URL = "https://milo2080.com:80"
+# بيانات سيرفر Xtream التي تعمل برابط HTTP
+XTREAM_URL = "http://milo2080.com:80"
 USERNAME = "yqwgsr25au"
 PASSWORD = "guebgf707f"
+
+# جلسة اتصالات متقدمة لتجاوز حظر HTTP وشهادات الأمان
+session = requests.Session()
+session.headers.update({
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+})
 
 def fetch_xtream(action: str, category_id: str = None):
     url = f"{XTREAM_URL}/player_api.php?username={USERNAME}&password={PASSWORD}&action={action}"
     if category_id:
         url += f"&category_id={category_id}"
     try:
-        response = requests.get(url, timeout=10)
+        # verify=False لتجاهل مشاكل الأمان في روابط http والانتظار 15 ثانية
+        response = session.get(url, timeout=15, verify=False)
         if response.status_code == 200:
             return response.json()
     except Exception as e:
@@ -33,13 +40,11 @@ def fetch_xtream(action: str, category_id: str = None):
 def home():
     return {"status": "online", "message": "BIBSSA TV API is working"}
 
-# 1. جلب تصنيفات القنوات المباشرة فقط
 @app.get("/api/categories")
 def get_categories():
     categories = fetch_xtream("get_live_categories")
     return categories if isinstance(categories, list) else []
 
-# 2. جلب القنوات المباشرة فقط (مع إمكانية الفلترة حسب التصنيف)
 @app.get("/api/channels")
 def get_channels(category_id: str = None):
     data = fetch_xtream("get_live_streams", category_id)
@@ -55,6 +60,7 @@ def get_channels(category_id: str = None):
             "title": item.get("name"),
             "poster": item.get("stream_icon", ""),
             "category_id": item.get("category_id"),
+            # جلب البث عبر السيرفر الوسيط أو رابط مباشر
             "stream_url": f"{XTREAM_URL}/live/{USERNAME}/{PASSWORD}/{stream_id}.m3u8"
         })
     return channels
