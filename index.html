@@ -2,7 +2,6 @@
 <html lang="ar" dir="rtl">
 
 <head>
-
     <meta charset="UTF-8">
 
     <meta
@@ -12,444 +11,1288 @@
 
     <title>BIBSSA TV</title>
 
+    <!-- =====================================================
+         HLS.JS
+         ===================================================== -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+
+    <!-- =====================================================
+         MPEG-TS.JS
+         مهم جداً لبث video/mp2t
+         ===================================================== -->
+    <script src="https://cdn.jsdelivr.net/npm/mpegts.js@latest/dist/mpegts.min.js"></script>
 
     <style>
 
         * {
             box-sizing: border-box;
+        }
+
+        html,
+        body {
             margin: 0;
             padding: 0;
-            font-family: system-ui, sans-serif;
+            min-height: 100%;
+            font-family:
+                Arial,
+                Tahoma,
+                sans-serif;
+            background: #0b0f14;
+            color: #fff;
         }
 
         body {
-            background: #0f172a;
-            color: white;
-            padding: 15px;
-            text-align: center;
+            overflow-x: hidden;
         }
 
-        h1 {
-            color: #38bdf8;
-            margin-bottom: 15px;
-            font-size: 32px;
-        }
+        /* =====================================================
+           HEADER
+           ===================================================== */
 
-        .player-container {
-            width: 100%;
-            max-width: 900px;
-            margin: 0 auto 20px;
-            background: #000;
-            border-radius: 12px;
-            overflow: hidden;
-        }
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
 
-        video {
-            width: 100%;
-            height: 400px;
-            display: block;
-            background: #000;
-        }
+            height: 70px;
 
-        .nav-buttons {
             display: flex;
-            justify-content: center;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-bottom: 15px;
+            align-items: center;
+            gap: 20px;
+
+            padding: 0 25px;
+
+            background: rgba(10, 14, 20, 0.96);
+
+            border-bottom: 1px solid #202833;
+
+            backdrop-filter: blur(12px);
         }
 
-        .nav-btn {
-            padding: 11px 20px;
-            background: #334155;
-            border: none;
-            color: white;
+        .logo {
+            font-size: 24px;
+            font-weight: 900;
+            color: #00d9ff;
+            white-space: nowrap;
+        }
+
+        .logo span {
+            color: #fff;
+        }
+
+        .nav {
+            display: flex;
+            gap: 8px;
+        }
+
+        .nav button {
+            border: 0;
+            background: transparent;
+            color: #aaa;
+
+            padding: 10px 15px;
+
             border-radius: 8px;
+
             cursor: pointer;
-            font-weight: bold;
-            font-size: 14px;
-        }
 
-        .nav-btn:hover {
-            background: #475569;
-        }
-
-        .nav-btn.active {
-            background: #0284c7;
-        }
-
-        .controls-container {
-            max-width: 900px;
-            margin: 0 auto 15px;
-        }
-
-        select {
-            width: 100%;
-            padding: 12px;
-            border-radius: 8px;
-            background: #1e293b;
-            color: white;
-            border: 1px solid #475569;
-            font-size: 14px;
-            cursor: pointer;
-        }
-
-        .search-container {
-            max-width: 900px;
-            margin: 0 auto 15px;
-        }
-
-        #searchInput {
-            width: 100%;
-            padding: 12px;
-            border-radius: 8px;
-            border: 1px solid #334155;
-            background: #1e293b;
-            color: white;
-            outline: none;
-        }
-
-        #searchInput::placeholder {
-            color: #94a3b8;
-        }
-
-        .content-grid {
-            display: grid;
-            grid-template-columns:
-                repeat(
-                    auto-fill,
-                    minmax(140px, 1fr)
-                );
-
-            gap: 12px;
-
-            max-width: 900px;
-
-            margin: 0 auto;
-        }
-
-        .card {
-            background: #1e293b;
-            border-radius: 10px;
-            padding: 8px;
-            cursor: pointer;
-            text-align: center;
-            transition: 0.2s;
-            overflow: hidden;
-        }
-
-        .card:hover {
-            background: #334155;
-            transform: translateY(-3px);
-        }
-
-        .card img {
-            width: 100%;
-            height: 150px;
-            object-fit: cover;
-            border-radius: 6px;
-            background: #111827;
-        }
-
-        .card h4 {
-            font-size: 13px;
-            margin-top: 8px;
-            color: #e2e8f0;
-            line-height: 1.3;
-            word-break: break-word;
-        }
-
-        .card small {
-            display: block;
-            margin-top: 5px;
-            color: #94a3b8;
-        }
-
-        .message {
-            grid-column: 1 / -1;
-            color: #94a3b8;
-            padding: 25px;
             font-size: 15px;
         }
 
-        .error {
-            color: #f87171;
+        .nav button:hover,
+        .nav button.active {
+            background: #17202b;
+            color: #00d9ff;
         }
 
-        .back-btn {
-            background: #475569;
-            border: none;
-            color: white;
-            padding: 10px 18px;
+        .search-box {
+            margin-right: auto;
+
+            display: flex;
+            align-items: center;
+        }
+
+        .search-box input {
+            width: 240px;
+
+            padding: 11px 14px;
+
             border-radius: 8px;
+
+            border: 1px solid #28323e;
+
+            outline: none;
+
+            background: #111821;
+            color: #fff;
+        }
+
+        .search-box input:focus {
+            border-color: #00bcd4;
+        }
+
+        /* =====================================================
+           PLAYER
+           ===================================================== */
+
+        .player-section {
+            display: none;
+
+            padding: 20px;
+        }
+
+        .player-section.show {
+            display: block;
+        }
+
+        .player-container {
+            max-width: 1200px;
+            margin: auto;
+
+            background: #050709;
+
+            border: 1px solid #222b35;
+
+            border-radius: 12px;
+
+            overflow: hidden;
+        }
+
+        #videoPlayer {
+            display: block;
+
+            width: 100%;
+
+            height: min(68vh, 680px);
+
+            background: #000;
+
+            object-fit: contain;
+        }
+
+        .player-info {
+            padding: 15px 18px;
+
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            gap: 15px;
+
+            background: #10161e;
+        }
+
+        .player-title {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .close-player {
+            border: 0;
+
+            padding: 9px 15px;
+
+            border-radius: 7px;
+
+            background: #d62828;
+            color: #fff;
+
             cursor: pointer;
-            margin-bottom: 15px;
         }
 
-        .series-info {
-            max-width: 900px;
-            margin: 0 auto 20px;
-            background: #1e293b;
-            padding: 15px;
+        .close-player:hover {
+            background: #ef3b3b;
+        }
+
+        /* =====================================================
+           MAIN
+           ===================================================== */
+
+        main {
+            padding: 20px;
+        }
+
+        .toolbar {
+            display: flex;
+
+            align-items: center;
+
+            gap: 12px;
+
+            margin-bottom: 20px;
+
+            flex-wrap: wrap;
+        }
+
+        .toolbar select {
+            min-width: 220px;
+
+            padding: 11px 14px;
+
+            border-radius: 8px;
+
+            border: 1px solid #28323e;
+
+            background: #111821;
+
+            color: #fff;
+
+            outline: none;
+        }
+
+        .page-title {
+            font-size: 22px;
+            font-weight: bold;
+        }
+
+        /* =====================================================
+           GRID
+           ===================================================== */
+
+        .grid {
+            display: grid;
+
+            grid-template-columns:
+                repeat(
+                    auto-fill,
+                    minmax(180px, 1fr)
+                );
+
+            gap: 16px;
+        }
+
+        .card {
+            position: relative;
+
+            background: #111821;
+
+            border: 1px solid #202a35;
+
             border-radius: 10px;
-            text-align: right;
+
+            overflow: hidden;
+
+            cursor: pointer;
+
+            transition:
+                transform .18s ease,
+                border-color .18s ease,
+                box-shadow .18s ease;
         }
 
-        .series-info h2 {
-            color: #38bdf8;
-            margin-bottom: 8px;
+        .card:hover {
+            transform: translateY(-4px);
+
+            border-color: #00bcd4;
+
+            box-shadow:
+                0 10px 30px
+                rgba(0, 0, 0, .35);
         }
 
-        .series-info p {
-            color: #cbd5e1;
-            line-height: 1.6;
-            font-size: 14px;
+        .card-image {
+            width: 100%;
+
+            height: 150px;
+
+            background: #080b0f;
+
+            display: flex;
+
+            align-items: center;
+            justify-content: center;
         }
 
-        .season-title {
-            max-width: 900px;
-            margin: 20px auto 10px;
-            text-align: right;
-            color: #38bdf8;
-            font-size: 20px;
+        .card-image img {
+            width: 100%;
+            height: 100%;
+
+            object-fit: contain;
         }
 
-        @media (max-width: 600px) {
+        .no-logo {
+            font-size: 40px;
+            opacity: .3;
+        }
 
-            body {
-                padding: 10px;
+        .card-content {
+            padding: 12px;
+        }
+
+        .card-title {
+            font-size: 15px;
+
+            font-weight: bold;
+
+            line-height: 1.4;
+
+            display: -webkit-box;
+
+            -webkit-line-clamp: 2;
+
+            -webkit-box-orient: vertical;
+
+            overflow: hidden;
+        }
+
+        .card-group {
+            margin-top: 7px;
+
+            font-size: 12px;
+
+            color: #7e8a96;
+        }
+
+        /* =====================================================
+           STATUS
+           ===================================================== */
+
+        .status {
+            padding: 25px;
+
+            text-align: center;
+
+            color: #9aa5b1;
+        }
+
+        .error {
+            color: #ff6262;
+        }
+
+        .loading {
+            color: #00d9ff;
+        }
+
+        /* =====================================================
+           RESPONSIVE
+           ===================================================== */
+
+        @media (max-width: 800px) {
+
+            header {
+                height: auto;
+
+                min-height: 65px;
+
+                padding: 12px;
+
+                flex-wrap: wrap;
             }
 
-            h1 {
-                font-size: 25px;
+            .search-box {
+                width: 100%;
+
+                order: 3;
             }
 
-            video {
-                height: 230px;
+            .search-box input {
+                width: 100%;
             }
 
-            .content-grid {
+            .nav {
+                overflow-x: auto;
+            }
+
+            main {
+                padding: 12px;
+            }
+
+            .grid {
                 grid-template-columns:
                     repeat(
                         auto-fill,
-                        minmax(110px, 1fr)
+                        minmax(140px, 1fr)
                     );
 
-                gap: 8px;
+                gap: 10px;
             }
 
-            .card img {
+            .card-image {
                 height: 120px;
             }
 
+            #videoPlayer {
+                height: 45vh;
+            }
         }
 
     </style>
-
 </head>
+
 
 <body>
 
-    <h1>📺 BIBSSA TV</h1>
+<!-- =========================================================
+     HEADER
+     ========================================================= -->
 
-    <!-- PLAYER -->
+<header>
+
+    <div class="logo">
+        BIBSSA <span>TV</span>
+    </div>
+
+    <nav class="nav">
+
+        <button
+            id="liveBtn"
+            class="active"
+            onclick="changeSection('live')"
+        >
+            📺 القنوات
+        </button>
+
+        <button
+            id="moviesBtn"
+            onclick="changeSection('movie')"
+        >
+            🎬 الأفلام
+        </button>
+
+        <button
+            id="seriesBtn"
+            onclick="changeSection('series')"
+        >
+            📚 المسلسلات
+        </button>
+
+    </nav>
+
+    <div class="search-box">
+
+        <input
+            id="searchInput"
+            type="text"
+            placeholder="بحث..."
+            autocomplete="off"
+        >
+
+    </div>
+
+</header>
+
+
+<!-- =========================================================
+     PLAYER
+     ========================================================= -->
+
+<section
+    id="playerSection"
+    class="player-section"
+>
 
     <div class="player-container">
 
         <video
             id="videoPlayer"
             controls
+            autoplay
             playsinline
+            muted
         ></video>
 
-    </div>
+        <div class="player-info">
 
-    <!-- NAVIGATION -->
+            <div
+                id="playerTitle"
+                class="player-title"
+            >
+                جاري التشغيل...
+            </div>
 
-    <div class="nav-buttons">
+            <button
+                class="close-player"
+                onclick="closePlayer()"
+            >
+                إغلاق
+            </button>
 
-        <button
-            class="nav-btn active"
-            id="btnLive"
-            onclick="switchMode('live')"
-        >
-            📡 القنوات المباشرة
-        </button>
-
-        <button
-            class="nav-btn"
-            id="btnMovies"
-            onclick="switchMode('movies')"
-        >
-            🎬 الأفلام
-        </button>
-
-        <button
-            class="nav-btn"
-            id="btnSeries"
-            onclick="switchMode('series')"
-        >
-            📺 المسلسلات
-        </button>
-
-    </div>
-
-    <!-- CATEGORY -->
-
-    <div
-        class="controls-container"
-        id="categoryContainer"
-    >
-
-        <select
-            id="categorySelect"
-            onchange="onCategoryChange()"
-        >
-
-            <option value="">
-                جميع التصنيفات
-            </option>
-
-        </select>
-
-    </div>
-
-    <!-- SEARCH -->
-
-    <div class="search-container">
-
-        <input
-            id="searchInput"
-            type="text"
-            placeholder="🔎 ابحث عن قناة أو فيلم أو مسلسل..."
-            oninput="filterItems()"
-        >
-
-    </div>
-
-    <!-- CONTENT -->
-
-    <div
-        class="content-grid"
-        id="grid"
-    >
-
-        <div class="message">
-            جاري التحميل...
         </div>
 
     </div>
 
+</section>
+
+
+<!-- =========================================================
+     MAIN
+     ========================================================= -->
+
+<main>
+
+    <div class="toolbar">
+
+        <div
+            id="pageTitle"
+            class="page-title"
+        >
+            القنوات
+        </div>
+
+        <select
+            id="categorySelect"
+        >
+            <option value="">
+                كل التصنيفات
+            </option>
+        </select>
+
+    </div>
+
+
+    <div
+        id="status"
+        class="status loading"
+    >
+        جاري تحميل البيانات...
+    </div>
+
+
+    <div
+        id="grid"
+        class="grid"
+    ></div>
+
+</main>
+
 
 <script>
 
-    // =====================================================
-    // CONFIG
-    // =====================================================
+/* =========================================================
+   CONFIG
+   ========================================================= */
 
-    const API_BASE_URL =
-        "https://bibssa-tv.onrender.com";
+const API_BASE_URL =
+    "https://bibssa-tv.onrender.com";
 
 
-    const video =
-        document.getElementById(
-            "videoPlayer"
+/* =========================================================
+   GLOBAL VARIABLES
+   ========================================================= */
+
+let currentSection = "live";
+
+let allItems = [];
+
+let filteredItems = [];
+
+let hlsPlayer = null;
+
+let mpegtsPlayer = null;
+
+
+/* =========================================================
+   DOM
+   ========================================================= */
+
+const grid =
+    document.getElementById("grid");
+
+const status =
+    document.getElementById("status");
+
+const categorySelect =
+    document.getElementById("categorySelect");
+
+const searchInput =
+    document.getElementById("searchInput");
+
+const playerSection =
+    document.getElementById("playerSection");
+
+const videoPlayer =
+    document.getElementById("videoPlayer");
+
+const playerTitle =
+    document.getElementById("playerTitle");
+
+const pageTitle =
+    document.getElementById("pageTitle");
+
+
+/* =========================================================
+   HTML ESCAPE
+   ========================================================= */
+
+function escapeHTML(value) {
+
+    if (value === null ||
+        value === undefined) {
+
+        return "";
+    }
+
+    return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+
+/* =========================================================
+   LOAD DATA
+   ========================================================= */
+
+async function loadSection() {
+
+    try {
+
+        setStatus(
+            "جاري تحميل البيانات...",
+            "loading"
         );
 
+        grid.innerHTML = "";
 
-    const grid =
-        document.getElementById(
-            "grid"
-        );
+        let endpoint = "";
 
+        if (currentSection === "live") {
 
-    const categorySelect =
-        document.getElementById(
-            "categorySelect"
-        );
+            endpoint =
+                "/api/channels";
 
+        } else if (currentSection === "movie") {
 
-    const searchInput =
-        document.getElementById(
-            "searchInput"
-        );
+            endpoint =
+                "/api/movies";
 
+        } else {
 
-    let currentMode = "live";
-
-    let currentItems = [];
-
-    let hls = null;
-
-
-    // =====================================================
-    // DEFAULT IMAGE
-    // =====================================================
-
-    const defaultImage =
-        "https://via.placeholder.com/300x180?text=BIBSSA+TV";
-
-
-    // =====================================================
-    // PLAY STREAM
-    // =====================================================
-
-    function playStream(url) {
-
-        if (!url) {
-            return;
+            endpoint =
+                "/api/series";
         }
 
-        if (hls) {
 
-            hls.destroy();
-
-            hls = null;
-        }
-
-
-        const fullUrl =
-            url.startsWith("http")
-                ? url
-                : API_BASE_URL + url;
-
-
-        // HLS.js
-
-        if (
-            fullUrl.includes(".m3u8") &&
-            Hls.isSupported()
-        ) {
-
-            hls = new Hls({
-                enableWorker: true,
-                lowLatencyMode: true
-            });
-
-
-            hls.loadSource(
-                fullUrl
-            );
-
-
-            hls.attachMedia(
-                video
-            );
-
-
-            hls.on(
-                Hls.Events.MANIFEST_PARSED,
-                function() {
-
-                    video.play()
-                        .catch(() => {});
-
+        const response =
+            await fetch(
+                API_BASE_URL + endpoint,
+                {
+                    cache: "no-store"
                 }
             );
 
 
-            hls.on(
+        if (!response.ok) {
+
+            throw new Error(
+                "HTTP " + response.status
+            );
+        }
+
+
+        allItems =
+            await response.json();
+
+
+        filteredItems =
+            [...allItems];
+
+
+        await loadCategories();
+
+        renderItems();
+
+
+    } catch (error) {
+
+        console.error(error);
+
+        setStatus(
+            "فشل تحميل البيانات: " +
+            error.message,
+            "error"
+        );
+    }
+}
+
+
+/* =========================================================
+   LOAD CATEGORIES
+   ========================================================= */
+
+async function loadCategories() {
+
+    categorySelect.innerHTML =
+        '<option value="">كل التصنيفات</option>';
+
+    try {
+
+        let endpoint = "";
+
+        if (currentSection === "live") {
+
+            endpoint =
+                "/api/categories";
+
+        } else if (currentSection === "movie") {
+
+            endpoint =
+                "/api/movie-categories";
+
+        } else {
+
+            endpoint =
+                "/api/series-categories";
+        }
+
+
+        const response =
+            await fetch(
+                API_BASE_URL + endpoint,
+                {
+                    cache: "no-store"
+                }
+            );
+
+
+        if (!response.ok) {
+            return;
+        }
+
+
+        const categories =
+            await response.json();
+
+
+        categories.forEach(category => {
+
+            const option =
+                document.createElement("option");
+
+            option.value =
+                category.category_id;
+
+            option.textContent =
+                category.category_name;
+
+            categorySelect.appendChild(
+                option
+            );
+        });
+
+
+    } catch (error) {
+
+        console.error(
+            "Category error:",
+            error
+        );
+    }
+}
+
+
+/* =========================================================
+   FILTER CATEGORY
+   ========================================================= */
+
+categorySelect.addEventListener(
+    "change",
+    async function() {
+
+        const categoryId =
+            this.value;
+
+
+        if (!categoryId) {
+
+            filteredItems =
+                [...allItems];
+
+            renderItems();
+
+            return;
+        }
+
+
+        try {
+
+            let endpoint = "";
+
+            if (currentSection === "live") {
+
+                endpoint =
+                    "/api/channels?category_id=";
+
+            } else if (currentSection === "movie") {
+
+                endpoint =
+                    "/api/movies?category_id=";
+
+            } else {
+
+                endpoint =
+                    "/api/series?category_id=";
+            }
+
+
+            const response =
+                await fetch(
+                    API_BASE_URL +
+                    endpoint +
+                    encodeURIComponent(categoryId)
+                );
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    "HTTP " + response.status
+                );
+            }
+
+
+            filteredItems =
+                await response.json();
+
+
+            renderItems();
+
+
+        } catch (error) {
+
+            console.error(error);
+
+            setStatus(
+                "تعذر تحميل التصنيف",
+                "error"
+            );
+        }
+    }
+);
+
+
+/* =========================================================
+   SEARCH
+   ========================================================= */
+
+searchInput.addEventListener(
+    "input",
+    function() {
+
+        const search =
+            this.value
+                .trim()
+                .toLowerCase();
+
+
+        if (!search) {
+
+            renderItems();
+
+            return;
+        }
+
+
+        const source =
+            filteredItems.length
+                ? filteredItems
+                : allItems;
+
+
+        const results =
+            source.filter(item => {
+
+                const title =
+                    String(
+                        item.title || ""
+                    ).toLowerCase();
+
+                const group =
+                    String(
+                        item.group || ""
+                    ).toLowerCase();
+
+                return (
+                    title.includes(search) ||
+                    group.includes(search)
+                );
+            });
+
+
+        renderItems(results);
+    }
+);
+
+
+/* =========================================================
+   RENDER ITEMS
+   ========================================================= */
+
+function renderItems(items = filteredItems) {
+
+    grid.innerHTML = "";
+
+
+    if (!items.length) {
+
+        setStatus(
+            "لا توجد نتائج.",
+            ""
+        );
+
+        return;
+    }
+
+
+    status.style.display =
+        "none";
+
+
+    items.forEach(item => {
+
+        const card =
+            document.createElement("div");
+
+        card.className =
+            "card";
+
+
+        const title =
+            escapeHTML(
+                item.title || "بدون اسم"
+            );
+
+
+        const group =
+            escapeHTML(
+                item.group || ""
+            );
+
+
+        const poster =
+            item.poster ||
+            item.logo ||
+            "";
+
+
+        let imageHTML =
+            '<div class="no-logo">📺</div>';
+
+
+        if (poster) {
+
+            imageHTML =
+                `
+                <img
+                    src="${escapeHTML(poster)}"
+                    alt="${title}"
+                    loading="lazy"
+                    onerror="this.style.display='none';this.nextElementSibling.style.display='block';"
+                >
+                <div
+                    class="no-logo"
+                    style="display:none;"
+                >
+                    📺
+                </div>
+                `;
+        }
+
+
+        card.innerHTML = `
+
+            <div class="card-image">
+                ${imageHTML}
+            </div>
+
+            <div class="card-content">
+
+                <div class="card-title">
+                    ${title}
+                </div>
+
+                <div class="card-group">
+                    ${group}
+                </div>
+
+            </div>
+
+        `;
+
+
+        card.addEventListener(
+            "click",
+            () => {
+
+                if (item.stream_url) {
+
+                    playStream(
+                        item.stream_url,
+                        item.title
+                    );
+
+                } else {
+
+                    alert(
+                        "لا يوجد رابط بث لهذا العنصر."
+                    );
+                }
+            }
+        );
+
+
+        grid.appendChild(card);
+
+    });
+}
+
+
+/* =========================================================
+   CHANGE SECTION
+   ========================================================= */
+
+async function changeSection(section) {
+
+    currentSection =
+        section;
+
+
+    document
+        .querySelectorAll(".nav button")
+        .forEach(button => {
+
+            button.classList.remove(
+                "active"
+            );
+        });
+
+
+    if (section === "live") {
+
+        document
+            .getElementById("liveBtn")
+            .classList.add("active");
+
+        pageTitle.textContent =
+            "القنوات";
+
+    } else if (section === "movie") {
+
+        document
+            .getElementById("moviesBtn")
+            .classList.add("active");
+
+        pageTitle.textContent =
+            "الأفلام";
+
+    } else {
+
+        document
+            .getElementById("seriesBtn")
+            .classList.add("active");
+
+        pageTitle.textContent =
+            "المسلسلات";
+    }
+
+
+    searchInput.value = "";
+
+    await loadSection();
+}
+
+
+/* =========================================================
+   STOP CURRENT PLAYER
+   ========================================================= */
+
+function destroyPlayers() {
+
+    /* HLS */
+
+    if (hlsPlayer) {
+
+        try {
+            hlsPlayer.destroy();
+        } catch (error) {
+            console.warn(error);
+        }
+
+        hlsPlayer = null;
+    }
+
+
+    /* MPEG-TS */
+
+    if (mpegtsPlayer) {
+
+        try {
+            mpegtsPlayer.pause();
+        } catch (error) {}
+
+        try {
+            mpegtsPlayer.unload();
+        } catch (error) {}
+
+        try {
+            mpegtsPlayer.detachMediaElement();
+        } catch (error) {}
+
+        try {
+            mpegtsPlayer.destroy();
+        } catch (error) {}
+
+        mpegtsPlayer = null;
+    }
+
+
+    try {
+
+        videoPlayer.pause();
+
+        videoPlayer.removeAttribute(
+            "src"
+        );
+
+        videoPlayer.load();
+
+    } catch (error) {
+
+        console.warn(error);
+    }
+}
+
+
+/* =========================================================
+   PLAY STREAM
+   ========================================================= */
+
+async function playStream(
+    streamUrl,
+    title = "القناة"
+) {
+
+    if (!streamUrl) {
+
+        alert(
+            "رابط البث غير موجود."
+        );
+
+        return;
+    }
+
+
+    playerTitle.textContent =
+        title || "القناة";
+
+
+    playerSection.classList.add(
+        "show"
+    );
+
+
+    destroyPlayers();
+
+
+    /* -----------------------------------------------------
+       PROXY URL
+       ----------------------------------------------------- */
+
+    const proxyUrl =
+        API_BASE_URL +
+        "/proxy?url=" +
+        encodeURIComponent(
+            streamUrl
+        );
+
+
+    console.log(
+        "Original stream:",
+        streamUrl
+    );
+
+    console.log(
+        "Proxy stream:",
+        proxyUrl
+    );
+
+
+    /* -----------------------------------------------------
+       تحديد نوع البث من الرابط
+       ----------------------------------------------------- */
+
+    const lowerUrl =
+        streamUrl.toLowerCase();
+
+
+    /*
+       إذا كان الرابط واضحاً أنه HLS
+    */
+
+    const looksLikeHLS =
+        lowerUrl.includes(".m3u8") ||
+        lowerUrl.includes("m3u8");
+
+
+    /*
+       إذا كان MPEG-TS
+       في حالتنا السيرفر يرجع video/mp2t
+    */
+
+    const looksLikeTS =
+        lowerUrl.endsWith(".ts") ||
+        lowerUrl.includes(".ts?");
+
+
+    /* =====================================================
+       HLS
+       ===================================================== */
+
+    if (looksLikeHLS) {
+
+        if (
+            window.Hls &&
+            Hls.isSupported()
+        ) {
+
+            hlsPlayer =
+                new Hls({
+                    enableWorker: true,
+
+                    lowLatencyMode: true,
+
+                    backBufferLength: 30,
+
+                    maxBufferLength: 30,
+
+                    maxMaxBufferLength: 60,
+
+                    liveSyncDurationCount: 3
+                });
+
+
+            hlsPlayer.loadSource(
+                proxyUrl
+            );
+
+
+            hlsPlayer.attachMedia(
+                videoPlayer
+            );
+
+
+            hlsPlayer.on(
+                Hls.Events.MANIFEST_PARSED,
+                function() {
+
+                    videoPlayer.muted =
+                        true;
+
+                    videoPlayer.play()
+                        .catch(error => {
+
+                            console.warn(
+                                "Autoplay:",
+                                error
+                            );
+                        });
+                }
+            );
+
+
+            hlsPlayer.on(
                 Hls.Events.ERROR,
                 function(
                     event,
@@ -457,813 +1300,207 @@
                 ) {
 
                     console.error(
-                        "HLS Error:",
+                        "HLS error:",
                         data
                     );
-
                 }
             );
 
+
+            return;
         }
 
-        // Native HLS
 
-        else {
+        /*
+           Safari / native HLS
+        */
 
-            video.src =
-                fullUrl;
-
-            video.play()
-                .catch(() => {});
-
-        }
-
-    }
-
-
-    // =====================================================
-    // SWITCH MODE
-    // =====================================================
-
-    async function switchMode(
-        mode
-    ) {
-
-        currentMode =
-            mode;
-
-
-        document
-            .getElementById(
-                "btnLive"
+        if (
+            videoPlayer.canPlayType(
+                "application/vnd.apple.mpegurl"
             )
-            .classList
-            .toggle(
-                "active",
-                mode === "live"
-            );
-
-
-        document
-            .getElementById(
-                "btnMovies"
-            )
-            .classList
-            .toggle(
-                "active",
-                mode === "movies"
-            );
-
-
-        document
-            .getElementById(
-                "btnSeries"
-            )
-            .classList
-            .toggle(
-                "active",
-                mode === "series"
-            );
-
-
-        searchInput.value =
-            "";
-
-
-        await loadCategories();
-
-        await loadItems();
-
-    }
-
-
-    // =====================================================
-    // LOAD CATEGORIES
-    // =====================================================
-
-    async function loadCategories() {
-
-        categorySelect.innerHTML =
-            `
-            <option value="">
-                جميع التصنيفات
-            </option>
-            `;
-
-
-        let endpoint;
-
-
-        if (currentMode === "live") {
-
-            endpoint =
-                "/api/categories";
-
-        }
-
-        else if (
-            currentMode === "movies"
         ) {
 
-            endpoint =
-                "/api/movie-categories";
+            videoPlayer.src =
+                proxyUrl;
 
+            videoPlayer.play()
+                .catch(console.warn);
+
+            return;
         }
-
-        else {
-
-            endpoint =
-                "/api/series-categories";
-
-        }
+    }
 
 
-        try {
+    /* =====================================================
+       MPEG-TS
+       ===================================================== */
 
-            const response =
-                await fetch(
-                    API_BASE_URL +
-                    endpoint
-                );
+    if (
+        window.mpegts &&
+        mpegts.isSupported()
+    ) {
 
-
-            if (!response.ok) {
-                throw new Error(
-                    "HTTP " +
-                    response.status
-                );
-            }
+        console.log(
+            "Using MPEG-TS player"
+        );
 
 
-            const categories =
-                await response.json();
+        mpegtsPlayer =
+            mpegts.createPlayer(
+                {
+                    type: "mpegts",
 
+                    isLive: true,
 
-            if (
-                !Array.isArray(
-                    categories
-                )
-            ) {
+                    url: proxyUrl
+                },
+                {
+                    enableWorker: true,
 
-                return;
+                    lazyLoad: false,
 
-            }
+                    autoCleanupSourceBuffer: true,
 
+                    liveBufferLatencyChasing: true,
 
-            categories.forEach(
-                category => {
+                    liveBufferLatencyMaxLatency: 5,
 
-                    const option =
-                        document.createElement(
-                            "option"
-                        );
-
-
-                    option.value =
-                        category.category_id;
-
-
-                    option.textContent =
-                        category.category_name;
-
-
-                    categorySelect
-                        .appendChild(
-                            option
-                        );
-
+                    liveBufferLatencyMinRemain: 1
                 }
             );
 
-        }
 
-        catch (error) {
-
-            console.error(
-                "Categories error:",
-                error
-            );
-
-        }
-
-    }
+        mpegtsPlayer.attachMediaElement(
+            videoPlayer
+        );
 
 
-    // =====================================================
-    // LOAD ITEMS
-    // =====================================================
-
-    async function loadItems(
-        categoryId = ""
-    ) {
-
-        grid.innerHTML =
-            `
-            <div class="message">
-                جاري جلب المحتوى...
-            </div>
-            `;
+        mpegtsPlayer.load();
 
 
-        let endpoint;
+        mpegtsPlayer.play()
+            .catch(error => {
 
-
-        if (
-            currentMode === "live"
-        ) {
-
-            endpoint =
-                "/api/channels";
-
-        }
-
-        else if (
-            currentMode === "movies"
-        ) {
-
-            endpoint =
-                "/api/movies";
-
-        }
-
-        else {
-
-            endpoint =
-                "/api/series";
-
-        }
-
-
-        let url =
-            API_BASE_URL +
-            endpoint;
-
-
-        if (categoryId) {
-
-            url +=
-                "?category_id=" +
-                encodeURIComponent(
-                    categoryId
+                console.warn(
+                    "MPEG-TS autoplay:",
+                    error
                 );
-
-        }
-
-
-        try {
-
-            const response =
-                await fetch(
-                    url
-                );
+            });
 
 
-            if (!response.ok) {
-
-                throw new Error(
-                    "HTTP " +
-                    response.status
-                );
-
-            }
-
-
-            const data =
-                await response.json();
-
-
-            if (
-                !Array.isArray(
-                    data
-                )
+        mpegtsPlayer.on(
+            mpegts.Events.ERROR,
+            function(
+                errorType,
+                errorDetail,
+                errorInfo
             ) {
 
-                throw new Error(
-                    "Invalid API response"
+                console.error(
+                    "MPEG-TS error:",
+                    errorType,
+                    errorDetail,
+                    errorInfo
                 );
-
-            }
-
-
-            currentItems =
-                data;
-
-
-            renderItems(
-                currentItems
-            );
-
-
-        }
-
-        catch (error) {
-
-            console.error(
-                "Items error:",
-                error
-            );
-
-
-            grid.innerHTML =
-                `
-                <div class="message error">
-                    تعذر جلب البيانات من السيرفر.
-                    <br>
-                    تحقق من Render و Xtream API.
-                </div>
-                `;
-
-        }
-
-    }
-
-
-    // =====================================================
-    // RENDER ITEMS
-    // =====================================================
-
-    function renderItems(
-        items
-    ) {
-
-        grid.innerHTML =
-            "";
-
-
-        if (
-            !items ||
-            items.length === 0
-        ) {
-
-            grid.innerHTML =
-                `
-                <div class="message">
-                    لا يوجد محتوى في هذا التصنيف.
-                </div>
-                `;
-
-            return;
-
-        }
-
-
-        items.forEach(
-            item => {
-
-                const card =
-                    document.createElement(
-                        "div"
-                    );
-
-
-                card.className =
-                    "card";
-
-
-                const title =
-                    item.title ||
-                    "بدون اسم";
-
-
-                const poster =
-                    item.poster ||
-                    defaultImage;
-
-
-                card.innerHTML =
-                    `
-                    <img
-                        src="${escapeHtml(poster)}"
-                        onerror="this.src='${defaultImage}'"
-                        loading="lazy"
-                    >
-
-                    <h4>
-                        ${escapeHtml(title)}
-                    </h4>
-                    `;
-
-
-                card.onclick =
-                    function() {
-
-                        if (
-                            currentMode ===
-                            "series"
-                        ) {
-
-                            openSeries(
-                                item
-                            );
-
-                        }
-
-                        else {
-
-                            playStream(
-                                item.stream_url
-                            );
-
-                        }
-
-                    };
-
-
-                grid.appendChild(
-                    card
-                );
-
             }
         );
 
+
+        return;
     }
 
 
-    // =====================================================
-    // OPEN SERIES
-    // =====================================================
-
-    async function openSeries(
-        series
-    ) {
-
-        grid.innerHTML =
-            `
-            <div class="message">
-                جاري تحميل الحلقات...
-            </div>
-            `;
-
-
-        try {
-
-            const response =
-                await fetch(
-                    API_BASE_URL +
-                    "/api/series/" +
-                    encodeURIComponent(
-                        series.id
-                    )
-                );
-
-
-            if (!response.ok) {
-
-                throw new Error(
-                    "HTTP " +
-                    response.status
-                );
-
-            }
-
-
-            const data =
-                await response.json();
-
-
-            renderSeries(
-                data,
-                series
-            );
-
-
-        }
-
-        catch (error) {
-
-            console.error(
-                "Series error:",
-                error
-            );
-
-
-            grid.innerHTML =
-                `
-                <div class="message error">
-                    تعذر تحميل حلقات المسلسل.
-                </div>
-                `;
-
-        }
-
-    }
-
-
-    // =====================================================
-    // RENDER SERIES
-    // =====================================================
-
-    function renderSeries(
-        data,
-        series
-    ) {
-
-        grid.innerHTML =
-            "";
-
-
-        const back =
-            document.createElement(
-                "button"
-            );
-
-
-        back.className =
-            "back-btn";
-
-
-        back.textContent =
-            "⬅ العودة للمسلسلات";
-
-
-        back.onclick =
-            function() {
-
-                loadItems(
-                    categorySelect.value
-                );
-
-            };
-
-
-        grid.appendChild(
-            back
-        );
-
-
-        if (
-            data.info &&
-            (
-                data.info.plot ||
-                data.info.name
-            )
-        ) {
-
-            const info =
-                document.createElement(
-                    "div"
-                );
-
-
-            info.className =
-                "series-info";
-
-
-            info.innerHTML =
-                `
-                <h2>
-                    ${escapeHtml(
-                        data.info.name ||
-                        series.title
-                    )}
-                </h2>
-
-                <p>
-                    ${escapeHtml(
-                        data.info.plot ||
-                        "لا يوجد وصف."
-                    )}
-                </p>
-                `;
-
-
-            grid.appendChild(
-                info
-            );
-
-        }
-
-
-        const seasons =
-            data.seasons || [];
-
-
-        if (
-            seasons.length === 0
-        ) {
-
-            const msg =
-                document.createElement(
-                    "div"
-                );
-
-
-            msg.className =
-                "message";
-
-
-            msg.textContent =
-                "لم يتم العثور على مواسم أو حلقات.";
-
-
-            grid.appendChild(
-                msg
-            );
-
-
-            return;
-
-        }
-
-
-        seasons.forEach(
-            season => {
-
-                const seasonTitle =
-                    document.createElement(
-                        "div"
-                    );
-
-
-                seasonTitle.className =
-                    "season-title";
-
-
-                seasonTitle.style
-                    .gridColumn =
-                    "1 / -1";
-
-
-                seasonTitle.textContent =
-                    "📀 الموسم " +
-                    season.season;
-
-
-                grid.appendChild(
-                    seasonTitle
-                );
-
-
-                const episodes =
-                    season.episodes || [];
-
-
-                episodes.forEach(
-                    episode => {
-
-                        const card =
-                            document.createElement(
-                                "div"
-                            );
-
-
-                        card.className =
-                            "card";
-
-
-                        const image =
-                            episode.poster ||
-                            series.poster ||
-                            defaultImage;
-
-
-                        card.innerHTML =
-                            `
-                            <img
-                                src="${escapeHtml(image)}"
-                                onerror="this.src='${defaultImage}'"
-                                loading="lazy"
-                            >
-
-                            <h4>
-                                ${escapeHtml(
-                                    episode.title
-                                )}
-                            </h4>
-
-                            <small>
-                                الحلقة
-                                ${escapeHtml(
-                                    String(
-                                        episode.episode_num
-                                    )
-                                )}
-                            </small>
-                            `;
-
-
-                        card.onclick =
-                            function() {
-
-                                playStream(
-                                    episode.stream_url
-                                );
-
-                            };
-
-
-                        grid.appendChild(
-                            card
-                        );
-
-                    }
-                );
-
-            }
-        );
-
-    }
-
-
-    // =====================================================
-    // CATEGORY CHANGE
-    // =====================================================
-
-    function onCategoryChange() {
-
-        loadItems(
-            categorySelect.value
-        );
-
-    }
-
-
-    // =====================================================
-    // SEARCH
-    // =====================================================
-
-    function filterItems() {
-
-        const query =
-            searchInput.value
-                .trim()
-                .toLowerCase();
-
-
-        if (!query) {
-
-            renderItems(
-                currentItems
-            );
-
-            return;
-
-        }
-
-
-        const filtered =
-            currentItems.filter(
-                item =>
-                    String(
-                        item.title || ""
-                    )
-                    .toLowerCase()
-                    .includes(query)
-            );
-
-
-        renderItems(
-            filtered
-        );
-
-    }
-
-
-    // =====================================================
-    // HTML ESCAPE
-    // =====================================================
-
-    function escapeHtml(
-        value
-    ) {
-
-        return String(
-            value ?? ""
-        )
-        .replace(
-            /&/g,
-            "&amp;"
-        )
-        .replace(
-            /</g,
-            "&lt;"
-        )
-        .replace(
-            />/g,
-            "&gt;"
-        )
-        .replace(
-            /"/g,
-            "&quot;"
-        )
-        .replace(
-            /'/g,
-            "&#039;"
-        );
-
-    }
-
-
-    // =====================================================
-    // START
-    // =====================================================
-
-    switchMode(
-        "live"
+    /* =====================================================
+       NATIVE FALLBACK
+       ===================================================== */
+
+    console.log(
+        "Using native video"
     );
+
+
+    videoPlayer.src =
+        proxyUrl;
+
+
+    videoPlayer.play()
+        .catch(error => {
+
+            console.warn(
+                "Native playback:",
+                error
+            );
+        });
+}
+
+
+/* =========================================================
+   CLOSE PLAYER
+   ========================================================= */
+
+function closePlayer() {
+
+    destroyPlayers();
+
+    playerSection.classList.remove(
+        "show"
+    );
+}
+
+
+/* =========================================================
+   STATUS
+   ========================================================= */
+
+function setStatus(
+    message,
+    className = ""
+) {
+
+    status.style.display =
+        "block";
+
+    status.className =
+        "status " + className;
+
+    status.textContent =
+        message;
+}
+
+
+/* =========================================================
+   INITIAL LOAD
+   ========================================================= */
+
+document.addEventListener(
+    "DOMContentLoaded",
+    function() {
+
+        loadSection();
+
+    }
+);
+
+
+/* =========================================================
+   KEYBOARD ESC
+   ========================================================= */
+
+document.addEventListener(
+    "keydown",
+    function(event) {
+
+        if (
+            event.key === "Escape"
+        ) {
+
+            closePlayer();
+        }
+    }
+);
 
 </script>
 
 </body>
-
 </html>
