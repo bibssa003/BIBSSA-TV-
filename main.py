@@ -1,16 +1,20 @@
 import os
 import re
+from urllib.parse import urlparse
+
 import requests
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, Response
+
+
+# =========================================================
+# APP
+# =========================================================
 
 app = FastAPI(title="BIBSSA TV M3U API")
 
-# =========================================================
-# CORS
-# =========================================================
 
 app.add_middleware(
     CORSMiddleware,
@@ -20,32 +24,43 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # =========================================================
-# M3U URL
+# CONFIG
 # =========================================================
 
 M3U_URL = os.getenv("M3U_URL", "").strip()
+
 
 HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) "
         "Chrome/154.0.0.0 Safari/537.36"
-    )
+    ),
+    "Accept": "*/*",
+    "Connection": "keep-alive",
 }
 
+
 # =========================================================
-# CACHE
+# GLOBAL DATA
 # =========================================================
 
 playlist = []
 
+# السماح فقط بالدومينات التي تظهر في الـ M3U
+allowed_hosts = set()
+
 
 # =========================================================
-# M3U ATTRIBUTE PARSER
+# M3U HELPERS
 # =========================================================
 
 def parse_attributes(line):
+    """
+    قراءة attributes الموجودة داخل #EXTINF
+    """
     attributes = {}
 
     matches = re.findall(r'([\w-]+)="([^"]*)"', line)
@@ -56,15 +71,14 @@ def parse_attributes(line):
     return attributes
 
 
-# =========================================================
-# DETECT TYPE
-# =========================================================
-
 def detect_type(group, title, url):
+    """
+    محاولة تحديد نوع العنصر:
+    live / movie / series
+    """
 
     text = f"{group} {title} {url}".lower()
 
-    # Movies
     movie_words = [
         "movie",
         "movies",
@@ -74,16 +88,15 @@ def detect_type(group, title, url):
         "cinema",
         "أفلام",
         "فيلم",
-        "سينما"
+        "سينما",
     ]
 
-    # Series
     series_words = [
         "series",
         "serie",
         "tv series",
         "مسلسلات",
-        "مسلسل"
+        "مسلسل",
     ]
 
     for word in movie_words:
@@ -97,12 +110,60 @@ def detect_type(group, title, url):
     return "live"
 
 
+def update_allowed_hosts(items):
+    """
+    استخراج الدومينات الموجودة فعلياً في M3U.
+    هذا يمنع استعمال /proxy كـ Open Proxy لأي موقع.
+    """
+
+    global allowed_hosts
+
+    hosts = set()
+
+    for item in items:
+        stream_url = item.get("stream_url", "")
+
+        try:
+            parsed = urlparse(stream_url)
+
+            if parsed.hostname:
+                hosts.add(parsed.hostname.lower())
+
+        except Exception:
+            pass
+
+    allowed_hosts = hosts
+
+    print("Allowed upstream hosts:", sorted(allowed_hosts))
+
+
+def is_allowed_url(url):
+    """
+    التأكد أن الرابط تابع لأحد السيرفرات الموجودة في M3U.
+    """
+
+    try:
+        parsed = urlparse(url)
+
+        if parsed.scheme not in ("http", "https"):
+            return False
+
+        if not parsed.hostname:
+            return False
+
+        hostname = parsed.hostname.lower()
+
+        return hostname in allowed_hosts
+
+    except Exception:
+        return False
+
+
 # =========================================================
-# PARSE M3U
+# M3U PARSER
 # =========================================================
 
 def parse_m3u(content):
-
     items = []
 
     lines = content.splitlines()
@@ -116,21 +177,20 @@ def parse_m3u(content):
         if not line:
             continue
 
-        # EXTINF
+        # معلومات القناة
         if line.startswith("#EXTINF"):
             current_info = line
             continue
 
-        # Ignore other M3U tags
+        # تجاهل باقي تعليمات M3U
         if line.startswith("#"):
             continue
 
-        # Stream URL
+        # رابط القناة
         if current_info:
 
             attributes = parse_attributes(current_info)
 
-            # Name after comma
             if "," in current_info:
                 title = current_info.split(",", 1)[1].strip()
             else:
@@ -164,7 +224,7 @@ def parse_m3u(content):
                 "group": group,
                 "tvg_id": tvg_id,
                 "stream_url": line,
-                "type": item_type
+                "type": item_type,
             })
 
             current_info = None
@@ -173,52 +233,51 @@ def parse_m3u(content):
 
 
 # =========================================================
-# DOWNLOAD M3U
+# LOAD M3U
 # =========================================================
 
 def load_playlist():
-
     global playlist
 
     if not M3U_URL:
 
+        print("================================")
         print("ERROR: M3U_URL is empty")
+        print("================================")
 
         playlist = []
 
         return []
 
+
     try:
 
+        print("================================")
         print("Downloading M3U playlist...")
+        print("================================")
 
         response = requests.get(
             M3U_URL,
             headers=HEADERS,
-            timeout=60
+            timeout=60,
+            allow_redirects=True,
         )
 
-        print(
-            "M3U HTTP status:",
-            response.status_code
-        )
+        print("M3U HTTP status:", response.status_code)
 
         response.raise_for_status()
 
         content = response.text
 
-        print(
-            "M3U size:",
-            len(content),
-            "characters"
-        )
+        print("M3U size:", len(content), "characters")
 
         playlist = parse_m3u(content)
 
-        print(
-            "M3U items:",
-            len(playlist)
-        )
+        print("M3U items:", len(playlist))
+
+        update_allowed_hosts(playlist)
+
+        print("================================")
 
         return playlist
 
@@ -231,6 +290,8 @@ def load_playlist():
         )
 
         playlist = []
+
+        allowed_hosts.clear()
 
         return []
 
@@ -259,7 +320,7 @@ def home():
     return {
         "status": "online",
         "source": "M3U",
-        "items": len(playlist)
+        "items": len(playlist),
     }
 
 
@@ -275,20 +336,37 @@ def health():
         "source": "M3U",
         "m3u_configured": bool(M3U_URL),
         "items_loaded": len(playlist),
+
         "live_channels": len(
-            [x for x in playlist if x["type"] == "live"]
+            [
+                x
+                for x in playlist
+                if x["type"] == "live"
+            ]
         ),
+
         "movies": len(
-            [x for x in playlist if x["type"] == "movie"]
+            [
+                x
+                for x in playlist
+                if x["type"] == "movie"
+            ]
         ),
+
         "series": len(
-            [x for x in playlist if x["type"] == "series"]
-        )
+            [
+                x
+                for x in playlist
+                if x["type"] == "series"
+            ]
+        ),
+
+        "allowed_hosts": len(allowed_hosts),
     }
 
 
 # =========================================================
-# RELOAD PLAYLIST
+# RELOAD M3U
 # =========================================================
 
 @app.get("/api/reload")
@@ -298,7 +376,7 @@ def reload_playlist():
 
     return {
         "success": True,
-        "items_loaded": len(items)
+        "items_loaded": len(items),
     }
 
 
@@ -320,8 +398,9 @@ def categories():
     return [
         {
             "category_id": str(index + 1),
-            "category_name": group
+            "category_name": group,
         }
+
         for index, group in enumerate(groups)
     ]
 
@@ -342,7 +421,10 @@ def channels(category_id: str = None):
     if category_id:
 
         groups = sorted(
-            set(item["group"] for item in result)
+            set(
+                item["group"]
+                for item in result
+            )
         )
 
         try:
@@ -383,8 +465,9 @@ def movie_categories():
     return [
         {
             "category_id": str(index + 1),
-            "category_name": group
+            "category_name": group,
         }
+
         for index, group in enumerate(groups)
     ]
 
@@ -405,7 +488,10 @@ def movies(category_id: str = None):
     if category_id:
 
         groups = sorted(
-            set(item["group"] for item in result)
+            set(
+                item["group"]
+                for item in result
+            )
         )
 
         try:
@@ -446,8 +532,9 @@ def series_categories():
     return [
         {
             "category_id": str(index + 1),
-            "category_name": group
+            "category_name": group,
         }
+
         for index, group in enumerate(groups)
     ]
 
@@ -468,7 +555,10 @@ def series(category_id: str = None):
     if category_id:
 
         groups = sorted(
-            set(item["group"] for item in result)
+            set(
+                item["group"]
+                for item in result
+            )
         )
 
         try:
@@ -492,16 +582,24 @@ def series(category_id: str = None):
 
 
 # =========================================================
-# STREAM PROXY
+# STREAM DIAGNOSTIC
 # =========================================================
 
-@app.get("/proxy")
-def proxy(url: str):
+@app.get("/api/test-stream")
+def test_stream(url: str):
 
     if not url:
         raise HTTPException(
             status_code=400,
             detail="Missing URL"
+        )
+
+    # السماح فقط بروابط موجودة في M3U
+    if not is_allowed_url(url):
+
+        raise HTTPException(
+            status_code=403,
+            detail="Stream host is not allowed"
         )
 
     try:
@@ -510,26 +608,216 @@ def proxy(url: str):
             url,
             headers=HEADERS,
             stream=True,
-            timeout=30
+            timeout=15,
+            allow_redirects=True,
         )
 
-        response.raise_for_status()
-
-        content_type = response.headers.get(
-            "content-type",
-            "application/octet-stream"
+        content_type = (
+            response.headers.get("content-type")
+            or ""
         )
+
+        content_length = (
+            response.headers.get("content-length")
+        )
+
+        return {
+            "status": "ok",
+            "status_code": response.status_code,
+            "content_type": content_type,
+            "content_length": content_length,
+            "final_url": response.url.split("?")[0],
+            "server": response.headers.get("server"),
+        }
+
+    except Exception as e:
+
+        return {
+            "status": "error",
+            "error_type": type(e).__name__,
+            "error": str(e),
+        }
+
+
+# =========================================================
+# STREAM PROXY
+# =========================================================
+
+@app.get("/proxy")
+def proxy(
+    request: Request,
+    url: str
+):
+
+    if not url:
+
+        raise HTTPException(
+            status_code=400,
+            detail="Missing URL"
+        )
+
+
+    # حماية الـ proxy
+    if not is_allowed_url(url):
+
+        raise HTTPException(
+            status_code=403,
+            detail="Stream host is not allowed"
+        )
+
+
+    try:
+
+        # -------------------------------------------------
+        # Headers
+        # -------------------------------------------------
+
+        upstream_headers = dict(HEADERS)
+
+        range_header = request.headers.get("range")
+
+        if range_header:
+            upstream_headers["Range"] = range_header
+
+
+        # -------------------------------------------------
+        # Request upstream
+        # -------------------------------------------------
+
+        response = requests.get(
+            url,
+            headers=upstream_headers,
+            stream=True,
+            timeout=(15, 60),
+            allow_redirects=True,
+        )
+
+
+        # -------------------------------------------------
+        # Check response
+        # -------------------------------------------------
+
+        if response.status_code >= 400:
+
+            error_status = response.status_code
+
+            response.close()
+
+            raise HTTPException(
+                status_code=502,
+                detail=f"Upstream stream returned HTTP {error_status}"
+            )
+
+
+        # -------------------------------------------------
+        # Content Type
+        # -------------------------------------------------
+
+        content_type = (
+            response.headers.get("content-type")
+            or "application/octet-stream"
+        )
+
+
+        # -------------------------------------------------
+        # Response headers
+        # -------------------------------------------------
+
+        response_headers = {}
+
+
+        # Content-Length
+        if response.headers.get("content-length"):
+
+            response_headers["Content-Length"] = (
+                response.headers["content-length"]
+            )
+
+
+        # Content-Range
+        if response.headers.get("content-range"):
+
+            response_headers["Content-Range"] = (
+                response.headers["content-range"]
+            )
+
+
+        # Accept-Ranges
+        if response.headers.get("accept-ranges"):
+
+            response_headers["Accept-Ranges"] = (
+                response.headers["accept-ranges"]
+            )
+
+        else:
+
+            response_headers["Accept-Ranges"] = "bytes"
+
+
+        # Cache
+        response_headers["Cache-Control"] = "no-cache"
+
+
+        # -------------------------------------------------
+        # Stream generator
+        # -------------------------------------------------
+
+        def generate():
+
+            try:
+
+                for chunk in response.iter_content(
+                    chunk_size=64 * 1024
+                ):
+
+                    if chunk:
+
+                        yield chunk
+
+            finally:
+
+                response.close()
+
+
+        # -------------------------------------------------
+        # HTTP status
+        # -------------------------------------------------
+
+        status_code = response.status_code
+
 
         return StreamingResponse(
-            response.iter_content(
-                chunk_size=64 * 1024
-            ),
-            media_type=content_type
+            generate(),
+            status_code=status_code,
+            media_type=content_type,
+            headers=response_headers,
         )
+
+
+    except HTTPException:
+
+        raise
+
+
+    except requests.exceptions.Timeout:
+
+        raise HTTPException(
+            status_code=504,
+            detail="Upstream stream timeout"
+        )
+
+
+    except requests.exceptions.ConnectionError as e:
+
+        raise HTTPException(
+            status_code=502,
+            detail=f"Upstream connection error: {str(e)}"
+        )
+
 
     except Exception as e:
 
         raise HTTPException(
             status_code=502,
-            detail=str(e)
+            detail=f"Proxy error: {type(e).__name__}: {str(e)}"
         )
