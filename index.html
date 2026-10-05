@@ -132,7 +132,7 @@
         }
 
         /* =====================================================
-           PLAYER
+           PLAYER & CUSTOM CONTROLS
            ===================================================== */
 
         .player-section {
@@ -156,6 +156,15 @@
             border-radius: 12px;
 
             overflow: hidden;
+            position: relative;
+        }
+
+        /* Custom Player Wrapper */
+        .custom-player-wrapper {
+            position: relative;
+            width: 100%;
+            background: #000;
+            user-select: none;
         }
 
         #videoPlayer {
@@ -168,6 +177,121 @@
             background: #000;
 
             object-fit: contain;
+        }
+
+        /* Custom Overlay Controls */
+        .custom-controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(0deg, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.6) 60%, transparent 100%);
+            display: flex;
+            flex-direction: column;
+            padding: 10px 15px;
+            gap: 8px;
+            transition: opacity 0.3s ease;
+            opacity: 1;
+            z-index: 10;
+        }
+
+        .custom-controls.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+            cursor: pointer;
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: #00d9ff;
+            border-radius: 3px;
+            width: 0%;
+            position: relative;
+        }
+
+        .progress-container:hover {
+            height: 8px;
+        }
+
+        /* Controls Row */
+        .controls-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .controls-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-ctrl {
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 6px 10px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s, color 0.2s;
+        }
+
+        .btn-ctrl:hover {
+            background: rgba(255, 255, 255, 0.15);
+            color: #00d9ff;
+        }
+
+        .time-display {
+            font-size: 13px;
+            color: #ddd;
+            font-family: monospace;
+            white-space: nowrap;
+        }
+
+        /* Volume Controls */
+        .volume-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .volume-slider {
+            width: 70px;
+            accent-color: #00d9ff;
+            cursor: pointer;
+        }
+
+        /* Select Quality */
+        .quality-select {
+            background: #111821;
+            color: #fff;
+            border: 1px solid #28323e;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .quality-select:focus {
+            border-color: #00d9ff;
         }
 
         .player-info {
@@ -461,6 +585,14 @@
             #videoPlayer {
                 height: 45vh;
             }
+
+            .volume-slider {
+                width: 45px;
+            }
+
+            .controls-row {
+                gap: 6px;
+            }
         }
 
     </style>
@@ -530,13 +662,53 @@
 
     <div class="player-container">
 
-        <video
-            id="videoPlayer"
-            controls
-            autoplay
-            playsinline
-            muted
-        ></video>
+        <!-- Custom Player Container -->
+        <div class="custom-player-wrapper" id="customPlayerWrapper">
+            <video
+                id="videoPlayer"
+                playsinline
+                muted
+            ></video>
+
+            <!-- Custom Controls UI -->
+            <div class="custom-controls" id="customControls">
+                
+                <!-- Timeline Progress Bar -->
+                <div class="progress-container" id="progressContainer">
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
+
+                <!-- Control Buttons and Controls Bar -->
+                <div class="controls-row">
+                    
+                    <!-- Left Group: Play/Pause, Seek, Volume, Time -->
+                    <div class="controls-group">
+                        <button class="btn-ctrl" id="playPauseBtn" title="تشغيل / إيقاف">▶</button>
+                        
+                        <button class="btn-ctrl" id="rewindBtn" title="تأخير 10 ثوانٍ">⏪ 10s</button>
+                        <button class="btn-ctrl" id="forwardBtn" title="تقديم 10 ثوانٍ">10s ⏩</button>
+
+                        <div class="volume-group">
+                            <button class="btn-ctrl" id="muteBtn" title="كتم / تشغيل الصوت">🔊</button>
+                            <input type="range" id="volumeSlider" class="volume-slider" min="0" max="1" step="0.05" value="1">
+                        </div>
+
+                        <div class="time-display" id="timeDisplay">00:00 / 00:00</div>
+                    </div>
+
+                    <!-- Right Group: Quality & Fullscreen -->
+                    <div class="controls-group">
+                        <select id="qualitySelect" class="quality-select" title="جودة البث">
+                            <option value="-1">الجودة: تلقائي</option>
+                        </select>
+
+                        <button class="btn-ctrl" id="fullscreenBtn" title="ملء الشاشة">⛶</button>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
 
         <div class="player-info">
 
@@ -642,6 +814,8 @@ let hlsPlayer = null;
 
 let mpegtsPlayer = null;
 
+let controlsTimeout = null;
+
 
 /* =========================================================
    DOM
@@ -670,6 +844,20 @@ const playerTitle =
 
 const pageTitle =
     document.getElementById("pageTitle");
+
+/* Custom Controls Elements */
+const customPlayerWrapper = document.getElementById("customPlayerWrapper");
+const customControls = document.getElementById("customControls");
+const playPauseBtn = document.getElementById("playPauseBtn");
+const rewindBtn = document.getElementById("rewindBtn");
+const forwardBtn = document.getElementById("forwardBtn");
+const muteBtn = document.getElementById("muteBtn");
+const volumeSlider = document.getElementById("volumeSlider");
+const timeDisplay = document.getElementById("timeDisplay");
+const progressContainer = document.getElementById("progressContainer");
+const progressBar = document.getElementById("progressBar");
+const qualitySelect = document.getElementById("qualitySelect");
+const fullscreenBtn = document.getElementById("fullscreenBtn");
 
 
 /* =========================================================
@@ -1236,7 +1424,166 @@ function destroyPlayers() {
 
         console.warn(error);
     }
+
+    resetQualityOptions();
 }
+
+
+/* =========================================================
+   CUSTOM PLAYER CONTROLS LOGIC
+   ========================================================= */
+
+/* Format Time (seconds -> mm:ss or hh:mm:ss) */
+function formatTime(seconds) {
+    if (isNaN(seconds) || seconds === Infinity) return "LIVE";
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+
+    const formattedMins = mins < 10 ? "0" + mins : mins;
+    const formattedSecs = secs < 10 ? "0" + secs : secs;
+
+    if (hrs > 0) {
+        return `${hrs}:${formattedMins}:${formattedSecs}`;
+    }
+    return `${formattedMins}:${formattedSecs}`;
+}
+
+/* Toggle Play / Pause */
+function togglePlay() {
+    if (videoPlayer.paused || videoPlayer.ended) {
+        videoPlayer.play().catch(console.warn);
+    } else {
+        videoPlayer.pause();
+    }
+}
+
+/* Update Play/Pause Button Icon */
+videoPlayer.addEventListener("play", () => {
+    playPauseBtn.textContent = "⏸";
+    showControlsTemporarily();
+});
+
+videoPlayer.addEventListener("pause", () => {
+    playPauseBtn.textContent = "▶";
+    showControlsTemporarily();
+});
+
+/* Time and Progress Updates */
+videoPlayer.addEventListener("timeupdate", () => {
+    const curTime = videoPlayer.currentTime;
+    const dur = videoPlayer.duration;
+
+    if (!isNaN(dur) && dur > 0 && dur !== Infinity) {
+        const percent = (curTime / dur) * 100;
+        progressBar.style.width = percent + "%";
+        timeDisplay.textContent = `${formatTime(curTime)} / ${formatTime(dur)}`;
+    } else {
+        progressBar.style.width = "100%";
+        timeDisplay.textContent = `${formatTime(curTime)} / 🔴 بث مباشر`;
+    }
+});
+
+/* Seek on Progress Bar Click */
+progressContainer.addEventListener("click", (e) => {
+    const rect = progressContainer.getBoundingClientRect();
+    const pos = (e.clientX - rect.left) / rect.width;
+    if (!isNaN(videoPlayer.duration) && videoPlayer.duration > 0 && videoPlayer.duration !== Infinity) {
+        videoPlayer.currentTime = pos * videoPlayer.duration;
+    }
+});
+
+/* Forward / Rewind 10 Seconds */
+rewindBtn.addEventListener("click", () => {
+    videoPlayer.currentTime = Math.max(0, videoPlayer.currentTime - 10);
+});
+
+forwardBtn.addEventListener("click", () => {
+    if (!isNaN(videoPlayer.duration)) {
+        videoPlayer.currentTime = Math.min(videoPlayer.duration, videoPlayer.currentTime + 10);
+    }
+});
+
+/* Volume & Mute Controls */
+muteBtn.addEventListener("click", () => {
+    videoPlayer.muted = !videoPlayer.muted;
+    updateVolumeUI();
+});
+
+volumeSlider.addEventListener("input", (e) => {
+    videoPlayer.volume = e.target.value;
+    videoPlayer.muted = (e.target.value == 0);
+    updateVolumeUI();
+});
+
+function updateVolumeUI() {
+    if (videoPlayer.muted || videoPlayer.volume == 0) {
+        muteBtn.textContent = "🔇";
+        volumeSlider.value = 0;
+    } else {
+        muteBtn.textContent = "🔊";
+        volumeSlider.value = videoPlayer.volume;
+    }
+}
+
+/* Quality Management */
+function resetQualityOptions() {
+    qualitySelect.innerHTML = '<option value="-1">الجودة: تلقائي</option>';
+}
+
+function updateHlsQualityLevels(levels) {
+    resetQualityOptions();
+    if (!levels || levels.length <= 1) return;
+
+    levels.forEach((level, index) => {
+        const option = document.createElement("option");
+        option.value = index;
+        const height = level.height || "SD";
+        const bitrate = level.bitrate ? Math.round(level.bitrate / 1000) + "k" : "";
+        option.textContent = `${height}p ${bitrate ? '(' + bitrate + ')' : ''}`;
+        qualitySelect.appendChild(option);
+    });
+}
+
+qualitySelect.addEventListener("change", (e) => {
+    const levelIndex = parseInt(e.target.value);
+    if (hlsPlayer) {
+        hlsPlayer.currentLevel = levelIndex;
+    }
+});
+
+/* Fullscreen Control */
+fullscreenBtn.addEventListener("click", () => {
+    if (!document.fullscreenElement) {
+        if (customPlayerWrapper.requestFullscreen) {
+            customPlayerWrapper.requestFullscreen();
+        } else if (customPlayerWrapper.webkitRequestFullscreen) {
+            customPlayerWrapper.webkitRequestFullscreen();
+        }
+    } else {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        }
+    }
+});
+
+/* Toggle Play on Video Area Click */
+videoPlayer.addEventListener("click", togglePlay);
+playPauseBtn.addEventListener("click", togglePlay);
+
+/* Auto Hide Controls on Inactivity */
+function showControlsTemporarily() {
+    customControls.classList.remove("hidden");
+    clearTimeout(controlsTimeout);
+    if (!videoPlayer.paused) {
+        controlsTimeout = setTimeout(() => {
+            customControls.classList.add("hidden");
+        }, 3000);
+    }
+}
+
+customPlayerWrapper.addEventListener("mousemove", showControlsTemporarily);
+customPlayerWrapper.addEventListener("touchstart", showControlsTemporarily, { passive: true });
 
 
 /* =========================================================
@@ -1359,10 +1706,14 @@ async function playStream(
 
             hlsPlayer.on(
                 Hls.Events.MANIFEST_PARSED,
-                function() {
+                function(event, data) {
+
+                    updateHlsQualityLevels(data.levels);
 
                     videoPlayer.muted =
-                        true;
+                        false;
+
+                    updateVolumeUI();
 
                     videoPlayer.play()
                         .catch(error => {
@@ -1571,7 +1922,7 @@ document.addEventListener(
 
 
 /* =========================================================
-   KEYBOARD ESC
+   KEYBOARD ESC & SHORTCUTS
    ========================================================= */
 
 document.addEventListener(
@@ -1583,6 +1934,12 @@ document.addEventListener(
         ) {
 
             closePlayer();
+        }
+
+        /* Space to Play/Pause when Player active */
+        if (event.code === "Space" && playerSection.classList.contains("show")) {
+            event.preventDefault();
+            togglePlay();
         }
     }
 );
