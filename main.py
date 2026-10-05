@@ -1,5 +1,6 @@
 import os
 import re
+import unicodedata
 from urllib.parse import urlparse
 
 import requests
@@ -66,6 +67,61 @@ playlist = []
 
 # الدومينات المسموح للـ proxy الاتصال بها
 allowed_hosts = set()
+
+
+# =========================================================
+# CHANNEL NAME NORMALIZATION (الخطوة 1: تنظيف ومعالجة الاسم)
+# =========================================================
+
+def normalize_channel_name(raw_name: str) -> str:
+    if not raw_name:
+        return ""
+
+    # 1. تحويل النص إلى حروف صغيرة
+    name = raw_name.lower()
+
+    # 2. توحيد الترميز النصي وإزالة الزخارف
+    name = unicodedata.normalize('NFKC', name)
+
+    # 3. إزالة الأقواس وما بداخلها (مثل [AR], (ARABIC), [RAW], (VIP))
+    name = re.sub(r'\[.*?\]|\(.*?\)', ' ', name)
+
+    # 4. إزالة بادئات الدول واللغات المتبوعة برموز مثل | أو : أو -
+    name = re.sub(r'^\s*(ar|arabic|fr|french|en|english|us|uk|be|es|it|de|tr|general|news)\s*[:|\-_/]+', '', name)
+    name = re.sub(r'^\|[^\|]+\|', '', name)
+
+    # 5. إزالة صيغ ودقات العرض والكلمات الزائدة
+    noise_patterns = [
+        r'\b1080p\b', r'\b720p\b', r'\b4k\b', r'\b60fps\b',
+        r'\bfhd\b', r'\bhd\b', r'\bsd\b', r'\buhd\b', r'\bhevc\b', r'\bh265\b', r'\bh264\b',
+        r'\braw\b', r'\bvip\b', r'\bpremium\b', r'\bbackup\b', r'\bauto\b', r'\bsrc\b'
+    ]
+    for pattern in noise_patterns:
+        name = re.sub(pattern, '', name)
+
+    # 6. تحويل الأرقام المكتوبة بحروف إنجليزية إلى أرقام
+    number_map = {
+        r'\bone\b': '1',
+        r'\btwo\b': '2',
+        r'\bthree\b': '3',
+        r'\bfour\b': '4',
+        r'\bfive\b': '5',
+        r'\bsix\b': '6',
+        r'\bseven\b': '7',
+        r'\beight\b': '8',
+        r'\bnine\b': '9',
+        r'\bten\b': '10'
+    }
+    for word_pattern, num_str in number_map.items():
+        name = re.sub(word_pattern, num_str, name)
+
+    # 7. إزالة الرموز الخاصة وإبقاء الحروف والأرقام العربية والإنجليزية
+    name = re.sub(r'[^a-z0-9أ-ي\s]', ' ', name)
+
+    # 8. توحيد المسافات الزائدة
+    clean_name = " ".join(name.split())
+
+    return clean_name
 
 
 # =========================================================
@@ -170,11 +226,14 @@ def parse_m3u(content, start_id=1):
         if current_info:
             attributes = parse_attributes(current_info)
 
-            # TITLE
+            # TITLE (Original Title)
             if "," in current_info:
                 title = current_info.split(",", 1)[1].strip()
             else:
                 title = "Unknown"
+
+            # CLEAN TITLE (اسم القناة بعد التنظيف والتوحيد)
+            clean_title = normalize_channel_name(title)
 
             # GROUP
             group = (
@@ -199,6 +258,7 @@ def parse_m3u(content, start_id=1):
             items.append({
                 "id": str(start_id + len(items)),
                 "title": title,
+                "clean_title": clean_title,  # الحقل الجديد النظيف للمطابقة
                 "poster": logo,
                 "logo": logo,
                 "group": group,
